@@ -161,8 +161,8 @@ void circular_clock_set_ampm_mode(bool enable_ampm, bool is_pm) {
     s_clock.is_pm = is_pm;
 }
 
-void circular_clock_render(void) {
-    lgfx::LGFX_Sprite* sprite = static_cast<lgfx::LGFX_Sprite*>(circular_clock_get_sprite());
+void circular_clock_render_to_sprite(void* sprite_ptr) {
+    lgfx::LGFX_Sprite* sprite = static_cast<lgfx::LGFX_Sprite*>(sprite_ptr);
     if (!sprite) return;
 
     // 1. Clear display to deep obsidian black
@@ -187,7 +187,12 @@ void circular_clock_render(void) {
                          s_clock.badge_mode,
                          lock_recent,
                          s_clock.ampm_mode, s_clock.is_pm);
+}
 
+void circular_clock_render(void) {
+    void* sprite = circular_clock_get_sprite();
+    if (!sprite) return;
+    circular_clock_render_to_sprite(sprite);
     // 6. Transfer sprite to physical GC9A01 panel
     circular_clock_push_frame();
 }

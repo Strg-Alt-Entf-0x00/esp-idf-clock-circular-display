@@ -139,6 +139,16 @@ void circular_clock_set_brightness(uint8_t brightness_pct);
 /**
  * @brief Render current frame to internal sprite and push to GC9A01 display
  */
+/**
+ * @brief Render current clock frame to a provided LovyanGFX sprite buffer (240x240)
+ *
+ * Allows seamless embedding of the clock as an idle screen inside other display
+ * managers without managing separate panel handles or duplicate sprite buffers.
+ *
+ * @param sprite_ptr Pointer to lgfx::LGFX_Sprite
+ */
+void circular_clock_render_to_sprite(void* sprite_ptr);
+
 void circular_clock_render(void);
 
 /**

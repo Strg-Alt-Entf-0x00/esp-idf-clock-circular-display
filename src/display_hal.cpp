@@ -22,12 +22,13 @@ static const char* TAG = "display_hal";
 #define LCD_H_RES 240
 #define LCD_V_RES 240
 
-class LGFX_Dummy : public lgfx::LGFX_Device {
+namespace {
+class LGFX_Clock_Dummy : public lgfx::LGFX_Device {
 public:
-    LGFX_Dummy(void) {}
+    LGFX_Clock_Dummy(void) {}
 };
-
-static LGFX_Dummy s_lcd;
+}
+static LGFX_Clock_Dummy s_lcd;
 static lgfx::LGFX_Sprite s_sprite(&s_lcd);
 static esp_lcd_panel_handle_t s_panel_handle = NULL;
 static int s_backlight_pin = -1;

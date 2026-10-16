@@ -9,6 +9,8 @@ idf_component_register(
         "src/font_instances.cpp"
     INCLUDE_DIRS
         "include"
+    PRIV_INCLUDE_DIRS
+        "src"
     REQUIRES
         esp_lcd
         esp_timer
