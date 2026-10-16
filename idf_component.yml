@@ -1,0 +1,21 @@
+version: "1.0.0"
+description: "Luxury 24h Circular Radio Clock (Funkuhr) for circular displays (GC9A01 / LovyanGFX)"
+url: "https://github.com/Strg-Alt-Entf-0x00/esp-idf-formant-clock-circular-display"
+
+dependencies:
+  idf:
+    version: ">=5.0.0"
+
+  lovyan03/LovyanGFX:
+    git: https://github.com/lovyan03/LovyanGFX.git
+    version: 1.2.33
+
+  espressif/esp_lcd_gc9a01:
+    version: "^2.0.0"
+
+files:
+  exclude:
+    - "examples/**/build/**/*"
+    - "examples/**/managed_components/**/*"
+    - ".git/**/*"
+    - "**/.DS_Store"

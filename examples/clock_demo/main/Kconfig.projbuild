@@ -1,0 +1,75 @@
+menu "24h Circular Funkuhr Configuration"
+
+    config CLOCK_WIFI_ENABLE
+        bool "Enable WiFi Internet Time Sync (NTP)"
+        default y
+        help
+            Enables WiFi connection and SNTP synchronization with atomic time servers.
+
+    config CLOCK_WIFI_SSID
+        string "WiFi SSID"
+        depends on CLOCK_WIFI_ENABLE
+        default "YOUR_WIFI_SSID"
+        help
+            SSID of the wireless network.
+
+    config CLOCK_WIFI_PASSWORD
+        string "WiFi Password"
+        depends on CLOCK_WIFI_ENABLE
+        default "YOUR_WIFI_PASSWORD"
+        help
+            WPA2 pre-shared key for the wireless network.
+
+    config CLOCK_TIMEZONE
+        string "POSIX Timezone String"
+        default "CET-1CEST,M3.5.0,M10.5.0/3"
+        help
+            POSIX timezone format string. Default is Central European Time (CET/CEST)
+            with automatic daylight saving transitions.
+
+    choice CLOCK_LANGUAGE
+        prompt "Date Display Language"
+        default CLOCK_LANG_CHOICE_DE
+        help
+            Select default language for weekday and month abbreviations.
+
+        config CLOCK_LANG_CHOICE_DE
+            bool "German (z.B. Fr, 16. Okt)"
+
+        config CLOCK_LANG_CHOICE_EN
+            bool "English (e.g. Fri, 16 Oct)"
+    endchoice
+
+    choice CLOCK_DATE_FORMAT_CHOICE
+        prompt "Date Display Format"
+        default CLOCK_DATE_FORMAT_ABBREV
+        help
+            Select format for center date readout.
+
+        config CLOCK_DATE_FORMAT_NUMERIC
+            bool "Numeric (z.B. Fr 16.10)"
+
+        config CLOCK_DATE_FORMAT_ABBREV
+            bool "Abbreviated Month (z.B. Fr, 16. Okt)"
+
+        config CLOCK_DATE_FORMAT_FULL_WEEKDAY
+            bool "Full Weekday (z.B. Freitag, 16. Okt)"
+    endchoice
+
+    choice CLOCK_BADGE_MODE_CHOICE
+        prompt "Top Badge Mode"
+        default CLOCK_BADGE_CHOICE_SMART_AUTO
+        help
+            Display behavior of the circular badge at CY-36.
+
+        config CLOCK_BADGE_CHOICE_SMART_AUTO
+            bool "Smart Auto (Antenna during Search/Sync, then clean '24')"
+
+        config CLOCK_BADGE_CHOICE_ALWAYS_ANTENNA
+            bool "Always Antenna (Vector antenna ▲))) always visible)"
+
+        config CLOCK_BADGE_CHOICE_ALWAYS_MODE
+            bool "Always Mode ('24' or AM/PM always visible)"
+    endchoice
+
+endmenu

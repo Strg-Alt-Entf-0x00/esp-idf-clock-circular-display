@@ -1,0 +1,64 @@
+menu "Circular 24h Funkuhr Component"
+
+    menu "Hardware Display & Pinout Configuration"
+
+        config CIRCULAR_CLOCK_PIN_MOSI
+            int "SPI MOSI GPIO"
+            default 28 if IDF_TARGET_ESP32P4
+            default 11 if IDF_TARGET_ESP32S3
+            default 23 if IDF_TARGET_ESP32
+            default 28
+            help
+                GPIO number connected to GC9A01 display MOSI (SDA).
+
+        config CIRCULAR_CLOCK_PIN_SCLK
+            int "SPI SCLK GPIO"
+            default 27 if IDF_TARGET_ESP32P4
+            default 12 if IDF_TARGET_ESP32S3
+            default 18 if IDF_TARGET_ESP32
+            default 27
+            help
+                GPIO number connected to GC9A01 display SCLK.
+
+        config CIRCULAR_CLOCK_PIN_CS
+            int "SPI Chip Select (CS) GPIO"
+            default 24 if IDF_TARGET_ESP32P4
+            default 10 if IDF_TARGET_ESP32S3
+            default 5 if IDF_TARGET_ESP32
+            default 24
+            help
+                GPIO number connected to GC9A01 display CS.
+
+        config CIRCULAR_CLOCK_PIN_DC
+            int "Data / Command (DC) GPIO"
+            default 25 if IDF_TARGET_ESP32P4
+            default 9 if IDF_TARGET_ESP32S3
+            default 2 if IDF_TARGET_ESP32
+            default 25
+            help
+                GPIO number connected to GC9A01 display DC.
+
+        config CIRCULAR_CLOCK_PIN_RST
+            int "Reset (RST) GPIO"
+            default 26 if IDF_TARGET_ESP32P4
+            default 8 if IDF_TARGET_ESP32S3
+            default 4 if IDF_TARGET_ESP32
+            default 26
+            help
+                GPIO number connected to GC9A01 display RST (-1 if tied to EN/VCC).
+
+        config CIRCULAR_CLOCK_PIN_BKL
+            int "Backlight (BKL) GPIO"
+            default -1
+            help
+                GPIO number for PWM backlight control (-1 if tied to VCC).
+
+        config CIRCULAR_CLOCK_SPI_CLOCK_HZ
+            int "SPI Clock Speed (Hz)"
+            default 40000000
+            help
+                SPI bus clock speed in Hz (typically 40000000 for 40 MHz).
+
+    endmenu
+
+endmenu
