@@ -1,6 +1,8 @@
-# 24h Circular Radio Clock (Funkuhr) for ESP-IDF
+# 24-Hour Circular Clock Display for ESP-IDF
 
-24-hour circular clock display component and demo application for round displays (GC9A01 240x240, LovyanGFX v1) on ESP32-P4, ESP32-S3, and ESP32.
+An ESP-IDF display component and demo for a 24-hour circular clock on round
+GC9A01 240x240 displays. Tested targets include ESP32-P4 and ESP32-S3.
+Rendering uses LovyanGFX 1.2.33 (v1 API).
 
 ![Target](https://img.shields.io/badge/Target-ESP32--P4%20%7C%20S3%20%7C%20Classic-blue)
 ![IDF](https://img.shields.io/badge/ESP--IDF-v6.0.2-green)
@@ -119,16 +121,64 @@ The component is target-agnostic and supports **ESP32-P4**, **ESP32-S3**, **ESP3
 ### Menuconfig Settings
 
 Run `idf.py menuconfig` to configure:
-- **`Component config -> Circular 24h Clock Display Configuration`**:
+- **`Component config -> Circular 24h Clock Display Component`**:
   - SPI Host and Pin assignments
   - SPI Bus frequency (up to 80 MHz, default 40 MHz)
-- **`Clock Demo Application Options`**:
+- **`24h Circular Clock Demo Configuration`**:
   - **WiFi & NTP**: SSID, WPA2/WPA3 password, POSIX Timezone (`CET-1CEST,M3.5.0,M10.5.0/3` for automatic daylight saving)
-  - **Language Selection**: German (`Fr, 16. Okt`) or English (`Fri, Oct 16`)
+  - **Date Locale**: German, British/American English, French, Spanish, Portuguese, Italian, Danish, Norwegian Bokmål, or Swedish.
   - **Date Format**: DIN Abbreviated (`Fr, 16. Okt`), Full Weekday (`Freitag 16.10`), or Numeric (`16.10.2026`)
   - **Center Badge Mode**: Smart Auto (`▲)))` during search, clean `24` when locked), Always Antenna, or Always Mode (`24`/`AM`/`PM`)
 
 ---
+
+### Localization, locale selection, and fonts
+
+The clock API accepts BCP 47 locale tags through `circular_clock_set_locale()`.
+The demo exposes `de-DE`, `en-GB`, `en-US`, `fr-FR`, `es-ES`, `pt-PT`,
+`it-IT`, `da-DK`, `nb-NO`, and `sv-SE` in menuconfig. The legacy German/English
+language setter remains available and maps to `de-DE`/`en-GB`. Locale support
+currently formats the date; it is not a translation of every GUI/status string.
+
+The date renderer uses the bundled 8px Noto Sans U8g2 bitmap font. Its embedded
+glyph table contains basic Latin (`U+0020–U+007E`) and Latin-1 Supplement
+(`U+00A0–U+00FF`). The listed locales' date names use characters in that
+coverage. This is a verified glyph range, not a claim that the font supports
+all characters from Noto Sans or all languages using Latin script.
+
+**Automatic and manual language selection:** the display component has no
+connection to an operating-system locale, account setting, or time source. It
+does not guess a language from an IP address, SNTP server, or timezone. A
+parent application may use its own system/device locale as the automatic
+default and pass the resulting BCP 47 tag to `circular_clock_set_locale()`.
+If the user chooses a language manually, the application should persist that
+override and pass it instead. If the application locale changes, it should call
+the setter again. The demo currently selects one locale at build/configuration
+time in `menuconfig`; it does not yet provide a runtime automatic/manual
+language setting.
+
+**Locale and timezone are separate:** locale controls date language, names,
+ordering, and numeric formatting. Timezone rules convert an absolute
+timestamp into the local time and calendar date supplied to the clock. The
+application/time source owns both decisions. The demo's POSIX `TZ` setting
+controls local-time conversion and daylight-saving rules; it does not choose
+the date language. An app may therefore use, for example, `fr-FR` with the
+demo's Central European `CET/CEST` rules or `en-US` with another timezone.
+
+Translations alone do not add font coverage. To add languages that need
+characters outside the embedded font, generate and bundle a suitable compact
+font subset and check its flash/RAM impact and text width. Cyrillic requires
+its own glyphs; complex scripts such as Arabic additionally need shaping and
+right-to-left layout, which the current date renderer does not implement.
+
+### LovyanGFX version
+
+The component manifest pins LovyanGFX **1.2.33**, using its v1 API. Here “v1”
+identifies the library's API generation; it is not the installed release
+number. The [upstream release page](https://github.com/lovyan03/LovyanGFX/releases)
+currently lists 1.2.33 as the latest release. The dependency should remain
+pinned until a newer release is checked and built against the supported
+ESP-IDF targets.
 
 ## Build and Flash
 

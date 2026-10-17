@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @brief Luxury 24h Circular Radio Clock (Funkuhr) Demo for ESP32-P4 on COM4
+ * @brief 24-hour circular clock display demo for ESP32-P4
  *
  * Hardware Configuration:
  *  - Board: ESP32-P4
@@ -56,7 +56,7 @@ static bool is_plausible_system_time(time_t timestamp) {
 
 extern "C" void app_main(void) {
     ESP_LOGI(TAG, "========================================================");
-    ESP_LOGI(TAG, "   24h LUXUS-FUNKUHR (CIRCULAR CLOCK DEMO)             ");
+    ESP_LOGI(TAG, "   24-HOUR CIRCULAR CLOCK DISPLAY DEMO                 ");
     ESP_LOGI(TAG, "   Target: %s | Display: GC9A01 240x240 SPI            ", CONFIG_IDF_TARGET);
     ESP_LOGI(TAG, "========================================================");
 
@@ -88,10 +88,32 @@ extern "C" void app_main(void) {
     // 2. Watchmaker Preferences (from Kconfig — configurable via menuconfig)
     // ========================================================================
 #if defined(CONFIG_CLOCK_LANG_CHOICE_EN)
-    circular_clock_set_language(CLOCK_LANG_EN);
+    const char* date_locale = "en-GB";
+#elif defined(CONFIG_CLOCK_LANG_CHOICE_EN_US)
+    const char* date_locale = "en-US";
+#elif defined(CONFIG_CLOCK_LANG_CHOICE_FR)
+    const char* date_locale = "fr-FR";
+#elif defined(CONFIG_CLOCK_LANG_CHOICE_ES)
+    const char* date_locale = "es-ES";
+#elif defined(CONFIG_CLOCK_LANG_CHOICE_PT)
+    const char* date_locale = "pt-PT";
+#elif defined(CONFIG_CLOCK_LANG_CHOICE_IT)
+    const char* date_locale = "it-IT";
+#elif defined(CONFIG_CLOCK_LANG_CHOICE_DA)
+    const char* date_locale = "da-DK";
+#elif defined(CONFIG_CLOCK_LANG_CHOICE_NB)
+    const char* date_locale = "nb-NO";
+#elif defined(CONFIG_CLOCK_LANG_CHOICE_SV)
+    const char* date_locale = "sv-SE";
 #else
-    circular_clock_set_language(CLOCK_LANG_DE);
+    const char* date_locale = "de-DE";
 #endif
+    ret = circular_clock_set_locale(date_locale);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Unsupported configured date locale %s: %s",
+                 date_locale, esp_err_to_name(ret));
+        return;
+    }
 
 #if defined(CONFIG_CLOCK_DATE_FORMAT_NUMERIC)
     circular_clock_set_date_format(CLOCK_DATE_FMT_NUMERIC);
@@ -114,7 +136,7 @@ extern "C" void app_main(void) {
     tzset();
 
     // ========================================================================
-    // 3. Funkuhr Signal Acquisition Start
+    // 3. Start time-source acquisition
     // ========================================================================
     circular_clock_set_time_valid(false);
     circular_clock_set_radio_status(CIRCULAR_RADIO_UNKNOWN);

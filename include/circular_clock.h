@@ -1,6 +1,6 @@
 /**
  * @file circular_clock.h
- * @brief Public API for the luxury 24h circular Funkuhr on ESP-IDF
+ * @brief Public API for the 24-hour circular clock display on ESP-IDF
  */
 
 #pragma once
@@ -34,7 +34,7 @@ typedef struct {
  */
 typedef enum {
     CLOCK_LANG_DE = 0,            /**< German (e.g. Fr, 16. Okt / Freitag, 16. Okt) */
-    CLOCK_LANG_EN = 1             /**< English (e.g. Fri 16 Oct / Friday, 16 Oct) */
+    CLOCK_LANG_EN = 1             /**< English (e.g. Fri, 16 Oct / Friday, Oct 16) */
 } clock_language_t;
 
 /**
@@ -109,7 +109,23 @@ void circular_clock_set_date(int year, int month, int day, int wday);
 void circular_clock_set_date_str(const char* date_str);
 
 /**
- * @brief Set language for date formatting (German or English)
+ * @brief Set date locale using a BCP 47 language tag
+ *
+ * Supported locales: de-DE, en-GB, en-US, fr-FR, es-ES, pt-PT, it-IT,
+ * da-DK, nb-NO, sv-SE. Bare tags de, en, fr, es, pt, it, da, nb, and sv
+ * are accepted as aliases and select the listed default region.
+ *
+ * Date glyphs are limited to the Latin-1 repertoire supported by the built-in
+ * 8px font. Unsupported tags leave the current locale unchanged.
+ *
+ * @param locale_tag Locale tag (case-insensitive), e.g. "fr-FR"
+ * @return ESP_OK, ESP_ERR_INVALID_ARG for NULL/empty tags, or
+ *         ESP_ERR_NOT_SUPPORTED for an unsupported tag
+ */
+esp_err_t circular_clock_set_locale(const char* locale_tag);
+
+/**
+ * @brief Legacy language selector; maps German and English to de-DE and en-GB
  */
 void circular_clock_set_language(clock_language_t lang);
 

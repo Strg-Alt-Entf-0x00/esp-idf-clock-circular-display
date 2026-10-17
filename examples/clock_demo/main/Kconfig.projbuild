@@ -1,4 +1,4 @@
-menu "24h Circular Funkuhr Configuration"
+menu "24h Circular Clock Demo Configuration"
 
     config CLOCK_WIFI_ENABLE
         bool "Enable WiFi Internet Time Sync (NTP)"
@@ -29,16 +29,41 @@ menu "24h Circular Funkuhr Configuration"
             with automatic daylight saving transitions.
 
     choice CLOCK_LANGUAGE
-        prompt "Date Display Language"
+        prompt "Date Display Locale"
         default CLOCK_LANG_CHOICE_DE
         help
-            Select default language for weekday and month abbreviations.
+            Select locale for date language, weekday/month names, and date order.
+            All listed locales are supported by the built-in 8px Latin-1 font.
 
         config CLOCK_LANG_CHOICE_DE
-            bool "German (z.B. Fr, 16. Okt)"
+            bool "German (Germany, Fr, 16. Okt)"
 
         config CLOCK_LANG_CHOICE_EN
-            bool "English (e.g. Fri, 16 Oct)"
+            bool "English (United Kingdom, Fri, 16 Oct)"
+
+        config CLOCK_LANG_CHOICE_EN_US
+            bool "English (United States, Fri, Oct 16)"
+
+        config CLOCK_LANG_CHOICE_FR
+            bool "French (France, ven. 16 août)"
+
+        config CLOCK_LANG_CHOICE_ES
+            bool "Spanish (Spain, sáb., 16 ago.)"
+
+        config CLOCK_LANG_CHOICE_PT
+            bool "Portuguese (Portugal, sáb., 16 de ago.)"
+
+        config CLOCK_LANG_CHOICE_IT
+            bool "Italian (Italy, sab 16 ago)"
+
+        config CLOCK_LANG_CHOICE_DA
+            bool "Danish (Denmark, lør. 16. aug.)"
+
+        config CLOCK_LANG_CHOICE_NB
+            bool "Norwegian Bokmål (Norway, lør. 16. aug.)"
+
+        config CLOCK_LANG_CHOICE_SV
+            bool "Swedish (Sweden, lör 16 aug.)"
     endchoice
 
     choice CLOCK_DATE_FORMAT_CHOICE

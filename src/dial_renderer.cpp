@@ -119,7 +119,7 @@ void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int sec
 
     // ------------------------------------------------------------------------
     // 4. Trennschiene: Minute Divider Track (Radius 94..100)
-    // Includes Funkuhr Radar-Sweep during SEARCHING state
+    // Includes the radar sweep during SEARCHING state
     // ------------------------------------------------------------------------
     bool is_searching = (radio_status == CIRCULAR_RADIO_SEARCHING);
     float radar_sweep_head = g_radio_animator.getRadarAngle() - 90.0f;

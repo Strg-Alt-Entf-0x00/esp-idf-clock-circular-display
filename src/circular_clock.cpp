@@ -21,6 +21,105 @@ static const char* TAG = "circular_clock";
 // Declaration from display_hal.cpp
 esp_err_t circular_clock_hal_init(const circular_clock_config_t* config);
 
+enum class LocaleDateOrder {
+    DAY_MONTH,
+    MONTH_DAY
+};
+
+struct ClockLocale {
+    const char* tag;
+    const char* const* weekdays_short;
+    const char* const* weekdays_full;
+    const char* const* months_short;
+    LocaleDateOrder date_order;
+    const char* weekday_separator;
+    const char* day_month_separator;
+    char numeric_separator;
+    bool numeric_month_first;
+};
+
+static const char* const s_wdays_de_short[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
+static const char* const s_wdays_de_full[] = {"Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"};
+static const char* const s_months_de[] = {"Jan", "Feb", "Mrz", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"};
+
+static const char* const s_wdays_en_short[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+static const char* const s_wdays_en_full[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+static const char* const s_months_en[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+static const char* const s_wdays_fr_short[] = {"dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."};
+static const char* const s_wdays_fr_full[] = {"dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"};
+static const char* const s_months_fr[] = {"janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."};
+
+static const char* const s_wdays_es_short[] = {"dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."};
+static const char* const s_wdays_es_full[] = {"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"};
+static const char* const s_months_es[] = {"ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sept.", "oct.", "nov.", "dic."};
+
+static const char* const s_wdays_pt_short[] = {"dom.", "seg.", "ter.", "qua.", "qui.", "sex.", "sáb."};
+static const char* const s_wdays_pt_full[] = {"domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"};
+static const char* const s_months_pt[] = {"jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."};
+
+static const char* const s_wdays_it_short[] = {"dom", "lun", "mar", "mer", "gio", "ven", "sab"};
+static const char* const s_wdays_it_full[] = {"domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"};
+static const char* const s_months_it[] = {"gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"};
+
+static const char* const s_wdays_da_short[] = {"søn.", "man.", "tir.", "ons.", "tor.", "fre.", "lør."};
+static const char* const s_wdays_da_full[] = {"søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"};
+static const char* const s_months_da[] = {"jan.", "feb.", "mar.", "apr.", "maj", "jun.", "jul.", "aug.", "sep.", "okt.", "nov.", "dec."};
+
+static const char* const s_wdays_nb_short[] = {"søn.", "man.", "tir.", "ons.", "tor.", "fre.", "lør."};
+static const char* const s_wdays_nb_full[] = {"søndag", "mandag", "tirsdag", "onsdag", "torsdag", "fredag", "lørdag"};
+static const char* const s_months_nb[] = {"jan.", "feb.", "mars", "apr.", "mai", "juni", "juli", "aug.", "sep.", "okt.", "nov.", "des."};
+
+static const char* const s_wdays_sv_short[] = {"sön", "mån", "tis", "ons", "tor", "fre", "lör"};
+static const char* const s_wdays_sv_full[] = {"söndag", "måndag", "tisdag", "onsdag", "torsdag", "fredag", "lördag"};
+static const char* const s_months_sv[] = {"jan.", "feb.", "mars", "apr.", "maj", "juni", "juli", "aug.", "sep.", "okt.", "nov.", "dec."};
+
+static const ClockLocale s_locales[] = {
+    {"de-de", s_wdays_de_short, s_wdays_de_full, s_months_de, LocaleDateOrder::DAY_MONTH, ", ", ". ", '.', false},
+    {"en-gb", s_wdays_en_short, s_wdays_en_full, s_months_en, LocaleDateOrder::DAY_MONTH, ", ", " ", '.', false},
+    {"en-us", s_wdays_en_short, s_wdays_en_full, s_months_en, LocaleDateOrder::MONTH_DAY, ", ", " ", '/', true},
+    {"fr-fr", s_wdays_fr_short, s_wdays_fr_full, s_months_fr, LocaleDateOrder::DAY_MONTH, " ", " ", '/', false},
+    {"es-es", s_wdays_es_short, s_wdays_es_full, s_months_es, LocaleDateOrder::DAY_MONTH, ", ", " ", '/', false},
+    {"pt-pt", s_wdays_pt_short, s_wdays_pt_full, s_months_pt, LocaleDateOrder::DAY_MONTH, ", ", " de ", '/', false},
+    {"it-it", s_wdays_it_short, s_wdays_it_full, s_months_it, LocaleDateOrder::DAY_MONTH, " ", " ", '/', false},
+    {"da-dk", s_wdays_da_short, s_wdays_da_full, s_months_da, LocaleDateOrder::DAY_MONTH, " ", ". ", '/', false},
+    {"nb-no", s_wdays_nb_short, s_wdays_nb_full, s_months_nb, LocaleDateOrder::DAY_MONTH, " ", ". ", '/', false},
+    {"sv-se", s_wdays_sv_short, s_wdays_sv_full, s_months_sv, LocaleDateOrder::DAY_MONTH, " ", " ", '/', false},
+};
+
+static const ClockLocale* find_locale(const char* locale_tag) {
+    if (!locale_tag || !locale_tag[0]) {
+        return nullptr;
+    }
+
+    char normalized[16];
+    size_t length = 0;
+    for (; locale_tag[length] != '\0'; ++length) {
+        if (length >= sizeof(normalized) - 1) {
+            return nullptr;
+        }
+        const char ch = locale_tag[length];
+        if (!((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') ||
+              (ch >= '0' && ch <= '9') || ch == '-')) {
+            return nullptr;
+        }
+        normalized[length] = (ch >= 'A' && ch <= 'Z')
+                                 ? static_cast<char>(ch - 'A' + 'a')
+                                 : ch;
+    }
+    normalized[length] = '\0';
+
+    for (const ClockLocale& locale : s_locales) {
+        if (strcmp(normalized, locale.tag) == 0) {
+            return &locale;
+        }
+        if (length == 2 && strncmp(normalized, locale.tag, 2) == 0) {
+            return &locale;
+        }
+    }
+    return nullptr;
+}
+
 struct ClockState {
     int hour = 0;
     int minute = 0;
@@ -41,7 +140,7 @@ struct ClockState {
     bool custom_date_set = false;
     char date_str[48] = {};
 
-    clock_language_t language = CLOCK_LANG_DE;
+    const ClockLocale* locale = &s_locales[0];
     clock_date_format_t date_format = CLOCK_DATE_FMT_ABBREV;
     clock_badge_mode_t badge_mode = CLOCK_BADGE_SMART_AUTO;
 
@@ -86,46 +185,39 @@ static bool is_valid_date(int year, int month, int day, int wday) {
 static void update_formatted_date_string(ClockState& state) {
     if (state.custom_date_set || !state.date_valid) return;
 
-    // Weekday names
-    static const char* const s_wdays_de_short[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
-    static const char* const s_wdays_de_full[]  = {"Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"};
-    static const char* const s_wdays_en_short[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    static const char* const s_wdays_en_full[]  = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    const int wday = state.wday;
+    const int month = state.month - 1;
+    const ClockLocale& locale = *state.locale;
 
-    // Month names (DIN 5008 German standard & English standard)
-    static const char* const s_months_de[] = {"Jan", "Feb", "Mrz", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"};
-    static const char* const s_months_en[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-
-    int w = (state.wday >= 0 && state.wday < 7) ? state.wday : 0;
-    int m_idx = (state.month >= 1 && state.month <= 12) ? (state.month - 1) : 0;
-
-    if (state.language == CLOCK_LANG_DE) {
-        if (state.date_format == CLOCK_DATE_FMT_NUMERIC) {
-            snprintf(state.date_str, sizeof(state.date_str), "%s %02d.%02d",
-                     s_wdays_de_short[w], state.day, state.month);
-        } else if (state.date_format == CLOCK_DATE_FMT_FULL_WEEKDAY) {
-            snprintf(state.date_str, sizeof(state.date_str), "%s, %d. %s",
-                     s_wdays_de_full[w], state.day, s_months_de[m_idx]);
-        } else { // CLOCK_DATE_FMT_ABBREV
-            snprintf(state.date_str, sizeof(state.date_str), "%s, %d. %s",
-                     s_wdays_de_short[w], state.day, s_months_de[m_idx]);
+    if (state.date_format == CLOCK_DATE_FMT_NUMERIC) {
+        if (locale.numeric_month_first) {
+            snprintf(state.date_str, sizeof(state.date_str), "%s %02d%c%02d",
+                     locale.weekdays_short[wday], state.month,
+                     locale.numeric_separator, state.day);
+        } else {
+            snprintf(state.date_str, sizeof(state.date_str), "%s %02d%c%02d",
+                     locale.weekdays_short[wday], state.day,
+                     locale.numeric_separator, state.month);
         }
-    } else { // CLOCK_LANG_EN
-        if (state.date_format == CLOCK_DATE_FMT_NUMERIC) {
-            snprintf(state.date_str, sizeof(state.date_str), "%s %02d.%02d",
-                     s_wdays_en_short[w], state.day, state.month);
-        } else if (state.date_format == CLOCK_DATE_FMT_FULL_WEEKDAY) {
-            snprintf(state.date_str, sizeof(state.date_str), "%s, %s %d",
-                     s_wdays_en_full[w], s_months_en[m_idx], state.day);
-        } else { // CLOCK_DATE_FMT_ABBREV
-            snprintf(state.date_str, sizeof(state.date_str), "%s, %d %s",
-                     s_wdays_en_short[w], state.day, s_months_en[m_idx]);
-        }
+        return;
+    }
+
+    const char* weekday = state.date_format == CLOCK_DATE_FMT_FULL_WEEKDAY
+                              ? locale.weekdays_full[wday]
+                              : locale.weekdays_short[wday];
+    if (locale.date_order == LocaleDateOrder::MONTH_DAY) {
+        snprintf(state.date_str, sizeof(state.date_str), "%s%s%s %d",
+                 weekday, locale.weekday_separator, locale.months_short[month],
+                 state.day);
+    } else {
+        snprintf(state.date_str, sizeof(state.date_str), "%s%s%d%s%s",
+                 weekday, locale.weekday_separator, state.day,
+                 locale.day_month_separator, locale.months_short[month]);
     }
 }
 
 esp_err_t circular_clock_init(const circular_clock_config_t* config) {
-    ESP_LOGI(TAG, "Initializing 24h Luxury Circular Funkuhr");
+    ESP_LOGI(TAG, "Initializing 24-hour circular clock display");
     update_formatted_date_string(s_clock);
     return circular_clock_hal_init(config);
 }
@@ -225,12 +317,34 @@ void circular_clock_set_date_str(const char* date_str) {
 }
 
 void circular_clock_set_language(clock_language_t lang) {
-    if (lang != CLOCK_LANG_DE && lang != CLOCK_LANG_EN) {
+    const char* locale_tag = nullptr;
+    if (lang == CLOCK_LANG_DE) {
+        locale_tag = "de-DE";
+    } else if (lang == CLOCK_LANG_EN) {
+        locale_tag = "en-GB";
+    } else {
         ESP_LOGW(TAG, "Rejected invalid date language value %d", static_cast<int>(lang));
         return;
     }
-    s_clock.language = lang;
+
+    circular_clock_set_locale(locale_tag);
+}
+
+esp_err_t circular_clock_set_locale(const char* locale_tag) {
+    if (!locale_tag || !locale_tag[0]) {
+        ESP_LOGE(TAG, "Locale tag must not be NULL or empty");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const ClockLocale* locale = find_locale(locale_tag);
+    if (!locale) {
+        ESP_LOGE(TAG, "Unsupported locale tag: %s", locale_tag);
+        return ESP_ERR_NOT_SUPPORTED;
+    }
+
+    s_clock.locale = locale;
     update_formatted_date_string(s_clock);
+    return ESP_OK;
 }
 
 void circular_clock_set_date_format(clock_date_format_t fmt) {

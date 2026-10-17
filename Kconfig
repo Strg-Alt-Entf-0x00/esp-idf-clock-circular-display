@@ -1,4 +1,4 @@
-menu "Circular 24h Funkuhr Component"
+menu "Circular 24h Clock Display Component"
 
     menu "Hardware Display & Pinout Configuration"
 

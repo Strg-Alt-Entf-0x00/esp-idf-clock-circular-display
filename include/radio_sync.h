@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /**
- * @brief Funkuhr operation status
+ * @brief Caller-reported time-source status for display
  */
 typedef enum {
     CIRCULAR_RADIO_FREE_RUN = 0,    /**< Holdover using the local clock without an active source */
