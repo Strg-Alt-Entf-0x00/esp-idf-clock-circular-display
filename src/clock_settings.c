@@ -190,7 +190,6 @@ cleanup:
 
 esp_err_t clock_settings_init(void) {
     if (s_initialized) {
-        ESP_LOGW(TAG, "Settings already initialized");
         return ESP_OK;
     }
     
@@ -223,7 +222,7 @@ esp_err_t clock_settings_init(void) {
         ESP_LOGW(TAG, "Failed to load settings (%s), using defaults", esp_err_to_name(err));
         memcpy(&s_current_settings, &DEFAULT_SETTINGS, sizeof(clock_settings_t));
     } else {
-        ESP_LOGI(TAG, "Loaded settings from NVS");
+        ESP_LOGI(TAG, "Loaded settings from NVS:");
         ESP_LOGI(TAG, "  Locale: %s", s_current_settings.locale);
         ESP_LOGI(TAG, "  Timezone: %s", s_current_settings.timezone);
         ESP_LOGI(TAG, "  Date format: %d", s_current_settings.date_format);
@@ -242,8 +241,10 @@ esp_err_t clock_settings_load(clock_settings_t* settings) {
     }
     
     if (!s_initialized) {
-        ESP_LOGE(TAG, "Settings not initialized, call clock_settings_init() first");
-        return ESP_ERR_INVALID_STATE;
+        esp_err_t err = clock_settings_init();
+        if (err != ESP_OK) {
+            return err;
+        }
     }
     
     memcpy(settings, &s_current_settings, sizeof(clock_settings_t));
@@ -251,43 +252,43 @@ esp_err_t clock_settings_load(clock_settings_t* settings) {
 }
 
 esp_err_t clock_settings_save(const clock_settings_t* settings) {
-    if (!settings) {
-        return ESP_ERR_INVALID_ARG;
-    }
-    
     if (!s_initialized) {
-        ESP_LOGE(TAG, "Settings not initialized");
-        return ESP_ERR_INVALID_STATE;
+        esp_err_t err = clock_settings_init();
+        if (err != ESP_OK) {
+            return err;
+        }
     }
     
-    // Validate all settings before saving
-    if (!locale_data_find(settings->locale)) {
-        ESP_LOGE(TAG, "Invalid locale: %s", settings->locale);
-        return ESP_ERR_INVALID_ARG;
+    if (settings != NULL) {
+        // Validate all settings before saving
+        if (!locale_data_find(settings->locale)) {
+            ESP_LOGE(TAG, "Invalid locale: %s", settings->locale);
+            return ESP_ERR_INVALID_ARG;
+        }
+        
+        if (!is_valid_timezone(settings->timezone)) {
+            ESP_LOGE(TAG, "Invalid timezone");
+            return ESP_ERR_INVALID_ARG;
+        }
+        
+        if (!is_valid_date_format(settings->date_format)) {
+            ESP_LOGE(TAG, "Invalid date format: %d", settings->date_format);
+            return ESP_ERR_INVALID_ARG;
+        }
+        
+        if (!is_valid_badge_mode(settings->badge_mode)) {
+            ESP_LOGE(TAG, "Invalid badge mode: %d", settings->badge_mode);
+            return ESP_ERR_INVALID_ARG;
+        }
+        
+        if (!is_valid_brightness(settings->brightness)) {
+            ESP_LOGE(TAG, "Invalid brightness: %d", settings->brightness);
+            return ESP_ERR_INVALID_ARG;
+        }
+        
+        // Update current settings
+        memcpy(&s_current_settings, settings, sizeof(clock_settings_t));
     }
-    
-    if (!is_valid_timezone(settings->timezone)) {
-        ESP_LOGE(TAG, "Invalid timezone");
-        return ESP_ERR_INVALID_ARG;
-    }
-    
-    if (!is_valid_date_format(settings->date_format)) {
-        ESP_LOGE(TAG, "Invalid date format: %d", settings->date_format);
-        return ESP_ERR_INVALID_ARG;
-    }
-    
-    if (!is_valid_badge_mode(settings->badge_mode)) {
-        ESP_LOGE(TAG, "Invalid badge mode: %d", settings->badge_mode);
-        return ESP_ERR_INVALID_ARG;
-    }
-    
-    if (!is_valid_brightness(settings->brightness)) {
-        ESP_LOGE(TAG, "Invalid brightness: %d", settings->brightness);
-        return ESP_ERR_INVALID_ARG;
-    }
-    
-    // Update current settings
-    memcpy(&s_current_settings, settings, sizeof(clock_settings_t));
     
     // Save to NVS
     return save_to_nvs(&s_current_settings);
@@ -295,33 +296,52 @@ esp_err_t clock_settings_save(const clock_settings_t* settings) {
 
 esp_err_t clock_settings_reset_to_defaults(void) {
     if (!s_initialized) {
-        return ESP_ERR_INVALID_STATE;
+        esp_err_t err = clock_settings_init();
+        if (err != ESP_OK) {
+            return err;
+        }
     }
     
     ESP_LOGI(TAG, "Resetting settings to defaults");
     memcpy(&s_current_settings, &DEFAULT_SETTINGS, sizeof(clock_settings_t));
-    return save_to_nvs(&s_current_settings);
+    esp_err_t err = save_to_nvs(&s_current_settings);
+    if (err == ESP_OK) {
+        clock_settings_apply_to_clock();
+    }
+    return err;
 }
 
 esp_err_t clock_settings_set_locale(const char* locale) {
-    if (!s_initialized || !locale) {
+    if (!s_initialized) {
+        clock_settings_init();
+    }
+    
+    if (!locale || !locale[0]) {
         return ESP_ERR_INVALID_ARG;
     }
     
-    if (!locale_data_find(locale)) {
+    const locale_definition_t* loc = locale_data_find(locale);
+    if (!loc) {
         ESP_LOGE(TAG, "Unsupported locale: %s", locale);
         return ESP_ERR_NOT_SUPPORTED;
     }
     
-    strncpy(s_current_settings.locale, locale, CLOCK_SETTINGS_LOCALE_MAX_LEN);
+    strncpy(s_current_settings.locale, loc->tag, CLOCK_SETTINGS_LOCALE_MAX_LEN);
     s_current_settings.locale[CLOCK_SETTINGS_LOCALE_MAX_LEN] = '\0';
+    
+    // Apply immediately to active clock display
+    circular_clock_set_locale(s_current_settings.locale);
     
     ESP_LOGI(TAG, "Locale set to: %s", s_current_settings.locale);
     return ESP_OK;
 }
 
 esp_err_t clock_settings_set_timezone(const char* timezone) {
-    if (!s_initialized || !timezone) {
+    if (!s_initialized) {
+        clock_settings_init();
+    }
+    
+    if (!timezone || !timezone[0]) {
         return ESP_ERR_INVALID_ARG;
     }
     
@@ -338,13 +358,18 @@ esp_err_t clock_settings_set_timezone(const char* timezone) {
     }
     
     strcpy(s_current_settings.timezone, timezone);
+    
+    // Apply immediately to POSIX environment
+    setenv("TZ", s_current_settings.timezone, 1);
+    tzset();
+    
     ESP_LOGI(TAG, "Timezone set to: %s", s_current_settings.timezone);
     return ESP_OK;
 }
 
 esp_err_t clock_settings_set_date_format(clock_date_format_t format) {
     if (!s_initialized) {
-        return ESP_ERR_INVALID_STATE;
+        clock_settings_init();
     }
     
     if (!is_valid_date_format(format)) {
@@ -353,13 +378,15 @@ esp_err_t clock_settings_set_date_format(clock_date_format_t format) {
     }
     
     s_current_settings.date_format = format;
+    circular_clock_set_date_format(format);
+    
     ESP_LOGI(TAG, "Date format set to: %d", format);
     return ESP_OK;
 }
 
 esp_err_t clock_settings_set_badge_mode(clock_badge_mode_t mode) {
     if (!s_initialized) {
-        return ESP_ERR_INVALID_STATE;
+        clock_settings_init();
     }
     
     if (!is_valid_badge_mode(mode)) {
@@ -368,23 +395,27 @@ esp_err_t clock_settings_set_badge_mode(clock_badge_mode_t mode) {
     }
     
     s_current_settings.badge_mode = mode;
+    circular_clock_set_badge_mode(mode);
+    
     ESP_LOGI(TAG, "Badge mode set to: %d", mode);
     return ESP_OK;
 }
 
 esp_err_t clock_settings_set_ampm_mode(bool enable_ampm) {
     if (!s_initialized) {
-        return ESP_ERR_INVALID_STATE;
+        clock_settings_init();
     }
     
     s_current_settings.ampm_mode = enable_ampm;
+    circular_clock_set_ampm_mode(enable_ampm, false);
+    
     ESP_LOGI(TAG, "12h mode: %s", enable_ampm ? "enabled" : "disabled");
     return ESP_OK;
 }
 
 esp_err_t clock_settings_set_brightness(uint8_t brightness) {
     if (!s_initialized) {
-        return ESP_ERR_INVALID_STATE;
+        clock_settings_init();
     }
     
     if (!is_valid_brightness(brightness)) {
@@ -393,55 +424,74 @@ esp_err_t clock_settings_set_brightness(uint8_t brightness) {
     }
     
     s_current_settings.brightness = brightness;
+    circular_clock_set_brightness(brightness);
+    
     ESP_LOGI(TAG, "Brightness set to: %d%%", brightness);
     return ESP_OK;
 }
 
 esp_err_t clock_settings_get_locale(char* buf, size_t size) {
-    if (!s_initialized || !buf) {
+    if (!buf || size < 16) {
         return ESP_ERR_INVALID_ARG;
     }
     
-    if (size < sizeof(s_current_settings.locale)) {
-        return ESP_ERR_INVALID_SIZE;
+    if (!s_initialized) {
+        clock_settings_init();
     }
     
-    strcpy(buf, s_current_settings.locale);
+    strncpy(buf, s_current_settings.locale, size - 1);
+    buf[size - 1] = '\0';
     return ESP_OK;
 }
 
 esp_err_t clock_settings_get_timezone(char* buf, size_t size) {
-    if (!s_initialized || !buf) {
+    if (!buf || size < 64) {
         return ESP_ERR_INVALID_ARG;
     }
     
-    if (size < sizeof(s_current_settings.timezone)) {
-        return ESP_ERR_INVALID_SIZE;
+    if (!s_initialized) {
+        clock_settings_init();
     }
     
-    strcpy(buf, s_current_settings.timezone);
+    strncpy(buf, s_current_settings.timezone, size - 1);
+    buf[size - 1] = '\0';
     return ESP_OK;
 }
 
 clock_date_format_t clock_settings_get_date_format(void) {
+    if (!s_initialized) {
+        clock_settings_init();
+    }
     return s_current_settings.date_format;
 }
 
 clock_badge_mode_t clock_settings_get_badge_mode(void) {
+    if (!s_initialized) {
+        clock_settings_init();
+    }
     return s_current_settings.badge_mode;
 }
 
 bool clock_settings_get_ampm_mode(void) {
+    if (!s_initialized) {
+        clock_settings_init();
+    }
     return s_current_settings.ampm_mode;
 }
 
 uint8_t clock_settings_get_brightness(void) {
+    if (!s_initialized) {
+        clock_settings_init();
+    }
     return s_current_settings.brightness;
 }
 
 esp_err_t clock_settings_apply_to_clock(void) {
     if (!s_initialized) {
-        return ESP_ERR_INVALID_STATE;
+        esp_err_t err = clock_settings_init();
+        if (err != ESP_OK) {
+            return err;
+        }
     }
     
     ESP_LOGI(TAG, "Applying settings to clock display");

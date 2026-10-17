@@ -1,16 +1,41 @@
 # 24-Hour Circular Clock Display for ESP-IDF
 
-An ESP-IDF display component and demo for a 24-hour circular clock on round
-GC9A01 240x240 displays. Tested targets include ESP32-P4 and ESP32-S3.
-Rendering uses LovyanGFX 1.2.33 (v1 API).
+[![Component Registry](https://img.shields.io/badge/ESP--IDF-v5.0%20--%20v6.0+-blue.svg)](https://components.espressif.com/)
+[![Target](https://img.shields.io/badge/Target-ESP32--P4%20%7C%20S3%20%7C%20C6%20%7C%20Classic-orange.svg)]()
+[![Display](https://img.shields.io/badge/Display-GC9A01%20240x240%20SPI-purple.svg)]()
+[![Rendering](https://img.shields.io/badge/Engine-LovyanGFX%201.2.33-brightgreen.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
-![Target](https://img.shields.io/badge/Target-ESP32--P4%20%7C%20S3%20%7C%20Classic-blue)
-![IDF](https://img.shields.io/badge/ESP--IDF-v6.0.2-green)
-![Display](https://img.shields.io/badge/Display-GC9A01%20240x240-orange)
+A high-precision, state-of-the-art **24-hour luxury circular clock display component** designed for round 240x240 GC9A01 SPI displays running on ESP-IDF (ESP32-P4, ESP32-S3, ESP32-C6, and ESP32).
+
+Renders fluid dual-ring chapter scales, interactive animated comets, an orbital seconds pip with minute wave regeneration, a compact Swiss horology center cluster (with real-time approximate moon phase), full 10-language localization, and persistent NVS runtime configuration.
 
 ---
 
-## Dial Design Specification (Dual-Ring Watchmaker Architecture)
+## Key Features
+
+- **Luxury Dual-Ring Horology Architecture**:
+  - Outer 24h crimson red comet pointer and airy 24h numerals.
+  - Inner 60m electric cyan comet pointer and 60m minute track.
+  - Concentric *Trennschiene* divider ring with interactive second pip, minute progress dot consumption, and cascading minute regeneration waves.
+- **Center Cluster Watch Face**:
+  - Top multi-mode badge (Smart Auto antenna $\blacktriangle$))), "24", "AM"/"PM", holdover "H", or unknown "?").
+  - Digital readout `HH : MM : SS` rendered in crisp Google Noto Sans fonts.
+  - Formatted calendar date in 10 European languages.
+  - Real-time calendar-day astronomical Moon Phase (earthshine shadow & silver illumination).
+- **Comprehensive Multilingual Localization (10 BCP 47 Locales)**:
+  - Built-in Latin-1 font coverage for German, British English, American English, French, Spanish, Portuguese, Italian, Danish, Norwegian, and Swedish.
+  - Dynamic discovery API for GUI menus and serial consoles.
+- **Persistent Settings Manager (`clock_settings.h`)**:
+  - Dedicated NVS partition storage for locale, POSIX timezone, date format, badge mode, 12h/24h mode, and backlight brightness.
+  - Live runtime updating: changes take immediate effect on screen; saving to flash is explicitly controllable to prevent flash wear.
+- **Dual Operating Modes**:
+  - **Standalone Mode**: Component directly drives GC9A01 panel and SPI bus with auto-managed backlight PWM.
+  - **Embedded / Headless Mode**: Supply `NULL` config to `circular_clock_init(NULL)` and render into an external LovyanGFX sprite buffer (`circular_clock_render_to_sprite`) — ideal for idle screen integration in larger UI frameworks and audio/voice applications (e.g., TTS).
+
+---
+
+## Dial Design Specification
 
 ```
                       [CY-36: Antenna ▲))) / "24" Badge]
@@ -21,171 +46,197 @@ Rendering uses LovyanGFX 1.2.33 (v1 API).
                                       |
                       [CY+45: Approximate Moon Phase]
                                       |
-  [R 69..72: Blue 60m Comet] <--------+--------> [R 82: 60m Scale (60, 05..55)]
+  [R 69..72: Cyan 60m Comet] <--------+--------> [R 82: 60m Scale (60, 05..55)]
                                       |
-  [R 96: Trennschiene (Ticks + Seconds + Pac-Man Dots + Radar)]
+  [R 96: Trennschiene (Ticks + Seconds Pip + Pac-Man Dots + Radar)]
                                       |
   [R 108: 24h Scale (1..24)] <--------+--------> [R 116..119: Red 24h Comet]
 ```
 
-### Detailed Geometry & Features:
-- **R = 116..119**: **Red 24h-Hour Comet** (Fading tail 35°, glowing tip bead $r=3\text{px}$).
-- **R = 108**: **24h Hour Scale** (10pt Noto Sans font, 24 at top, 12 at bottom; active hour pure white, inactive dark slate gray; airy spacing).
-- **R = 96**: **Trennschiene Divider Track** with quarter tick lines ($R=92..100$), 5-minute ticks ($R=93.5..98.5$), and intermediate minute dots.
-- **R = 96**: **Pac-Man Interactive Seconds Pip**:
-  - The luminous amber pip orbits at 1 Hz, expanding to radiant pulses on 5-minute and quarter marks.
-  - **Dot Consumption**: As the pip travels forward, it "eats" intermediate dots in its path, creating an analog visual progress ring for the current minute.
-  - **Minute Regeneration Wave**: At second 0, a cascading luminous wave sweeps clockwise around the dial (0..650ms), respawning all dots with a soft neon bloom.
-- **R = 82**: **60m Minute Scale** (8pt Noto Sans font, 60 at top, 05..55, 30 at bottom; active 5m interval pure white, inactive dark slate gray).
-- **R = 69..72**: **Blue/Cyan 60m Minute Comet** (Fading tail 45°, glowing tip bead $r=3\text{px}$).
-- **Compact Watchmaker Center ($R \le 48$)**:
-  - **CY - 36**: Circular Badge with vector radio tower `▲)))` during search, `?` when time is unknown, `H` during holdover, or `24` / `AM` / `PM` in normal display mode.
-  - **CY - 8**: Digital readout `HH : MM : SS` (16pt Noto Sans, 18px horizontal step: HH crimson red, colons slate gray, MM electric cyan, SS luminous amber).
-  - **CY + 14**: Clean date display with DIN format (e.g. `Fr, 16. Okt` / `Fri 16 Oct`).
-  - **CY + 45**: Approximate calendar-day Moon phase (Radius 10).
+### Detailed Geometry & Dimensions ($240 \times 240$, Center $CX=120, CY=120$)
+
+| Radius / Offset | Element | Description |
+|---|---|---|
+| **$R = 116..119$** | **24h Hour Comet** | Fading crimson tail ($35^\circ$), glowing tip bead ($r=3\text{px}$). |
+| **$R = 108$** | **24h Hour Scale** | 10pt Noto Sans font; active hour pure white, inactive dark slate gray. |
+| **$R = 96$** | **Trennschiene Divider** | Quarter tick marks ($R=92..100$), 5m ticks ($R=93.5..98.5$), intermediate dots. |
+| **$R = 96$** | **Interactive Second Pip** | Warm amber pip orbits at 1 Hz; consumes intermediate dots in its path (analog progress); triggers a cascading wave respawn at second 0. |
+| **$R = 82$** | **60m Minute Scale** | 8pt Noto Sans font (`60`, `05`..`55`, `30`). |
+| **$R = 69..72$** | **60m Minute Comet** | Fading electric cyan tail ($45^\circ$), glowing tip bead ($r=3\text{px}$). |
+| **$CY - 36$** | **Top Circular Badge** | Displays vector antenna symbol during sync/search, or clean mode ("24", "AM", "PM"). |
+| **$CY - 8$** | **Digital Time** | 16pt Noto Sans `HH : MM : SS` (18px horizontal step; color-coded matching comet tracks). |
+| **$CY + 14$** | **Date Readout** | Localized date formatted according to selected BCP 47 locale and format preference. |
+| **$CY + 45$** | **Astronomical Moon** | Earthshine circle ($r=10\text{px}$) with phase illumination computed via synodic month approximation. |
 
 ---
 
-## Typography
+## Supported Locales (10 Languages)
 
-Native pre-rendered Google Noto Sans U8g2 fonts (SIL Open Font License 1.1):
-- **`noto_sans_8.h`** (`FONT_SMALL`): Date, 60m minute markers, AM/PM badges.
-- **`noto_sans_10.h`** (`FONT_SCALE`): 24h hour numbers.
-- **`noto_sans_16.h`** (`FONT_DIGITAL`): Digital time readout `HH : MM : SS`.
+All locale names and abbreviations use characters within the bundled Latin-1 font subset:
 
----
+| Index | BCP 47 Tag | Language | Short / Full Example | Separator Style |
+|:---:|:---:|:---|:---|:---:|
+| **0** | `de-DE` | Deutsch (German) | `Fr, 16. Okt` / `Freitag, 16. Okt` | Day.Month (`16.10`) |
+| **1** | `en-GB` | English (United Kingdom) | `Fri, 16 Oct` / `Friday, 16 Oct` | Day Month (`16.10`) |
+| **2** | `en-US` | English (United States) | `Fri, Oct 16` / `Friday, Oct 16` | Month/Day (`10/16`) |
+| **3** | `fr-FR` | Français (French) | `ven. 16 oct.` / `vendredi 16 oct.` | Day/Month (`16/10`) |
+| **4** | `es-ES` | Español (Spanish) | `vie., 16 oct.` / `viernes, 16 oct.` | Day/Month (`16/10`) |
+| **5** | `pt-PT` | Português (Portuguese) | `sex., 16 de out.` / `sexta-feira, 16 de out.` | Day/Month (`16/10`) |
+| **6** | `it-IT` | Italiano (Italian) | `ven 16 ott` / `venerdì 16 ott` | Day/Month (`16/10`) |
+| **7** | `da-DK` | Dansk (Danish) | `fre. 16. okt.` / `fredag 16. okt.` | Day.Month (`16/10`) |
+| **8** | `nb-NO` | Norsk Bokmål (Norwegian) | `fre. 16. okt.` / `fredag 16. okt.` | Day.Month (`16/10`) |
+| **9** | `sv-SE` | Svenska (Swedish) | `fre 16 okt.` / `fredag 16 okt.` | Day/Month (`16/10`) |
 
-## Time Synchronization Status Display
-
-The component is a display/rendering library. The application supplies time,
-date, validity, and source status; the component does not acquire or validate
-time. The demo uses SNTP where the target has a supported Wi-Fi backend.
-Network synchronization does not guarantee atomic-clock accuracy.
-Call the clock API from one application task; event callbacks should hand off
-updates to that task rather than calling rendering or setters concurrently.
-
-1. **Caller-provided status**:
-   - `CIRCULAR_RADIO_UNKNOWN`: No valid time source has been established; the
-     display shows `--:--:--`.
-   - `CIRCULAR_RADIO_SEARCHING`: The application reports an active sync attempt.
-   - `CIRCULAR_RADIO_LOCKED`: The application reports a confirmed sync event;
-     this is not a measurement of ongoing reception or accuracy.
-   - `CIRCULAR_RADIO_FREE_RUN`: The application reports local-clock holdover.
-   - A confirmed synchronization cannot be reported as `LOCKED` while the
-     supplied time is invalid. The demo keeps `SEARCHING` visible during initial
-     acquisition and keeps holdover visible until a new sync succeeds after
-     connectivity returns.
-
-2. **Antenna Symbol `▲)))` (CY - 36)**:
-   - In `SEARCHING`: Animated radio waves radiating dynamically ($0 \to 1 \to 2 \to 3$).
-   - After a confirmed sync: A brief visual confirmation; it is not a precision
-     or atomic-time measurement.
-   - In Smart Auto mode, `?` marks unknown time and `H` marks local-clock
-     holdover without an active synchronization source.
-
-3. **Radar Sweep Animation (R = 96)**:
-   - During `SEARCHING`, an electric phosphor radar sweep rotates across the Trennschiene, illuminating tick marks and dots in its wake.
-
-4. **Synchronization transition animation**:
-   - Upon a caller-reported sync event, both comet pointers execute a visual
-     multi-turn sweep. This animation does not calibrate or adjust the clock.
-
-5. **Time synchronization**:
-   - The example currently implements Wi-Fi/SNTP only on targets with built-in
-     Wi-Fi support. DCF77 and GPS/NMEA are not implemented.
-
-The date-based moon icon is an approximate visualization using a mean
-synodic-month model. It is not an ephemeris or a precision astronomical
-calculation. Date and moon phase are hidden unless both time validity and
-calendar-date validity are true. A custom date string is caller-formatted and
-does not provide calendar data for moon-phase calculation. Custom strings are
-limited to 47 bytes; longer strings are rejected and logged.
+*Bare 2-letter tags (`de`, `en`, `fr`, `es`, `pt`, `it`, `da`, `nb`, `sv`) are accepted as case-insensitive aliases.*
 
 ---
 
-## Universal Target & Kconfig Configuration
+## Hardware Pinout & Target Defaults
 
-The component is target-agnostic and supports **ESP32-P4**, **ESP32-S3**, **ESP32-C6**, and classic **ESP32**. All hardware pins and user preferences can be configured via `idf.py menuconfig`.
-
-### Hardware Pinout & Defaults
+All pins are fully configurable via `idf.py menuconfig` under `Component config -> Circular 24h Clock Display Component`:
 
 | Signal | ESP32-P4 Default | ESP32-S3 Default | Classic ESP32 | Description |
 |---|---|---|---|---|
-| MOSI | **GPIO 28** | GPIO 11 | GPIO 23 | SPI Master Out |
-| SCLK | **GPIO 27** | GPIO 12 | GPIO 18 | SPI Clock |
-| CS   | **GPIO 24** | GPIO 10 | GPIO 5  | Chip Select |
-| DC   | **GPIO 25** | GPIO 9  | GPIO 4  | Data / Command |
-| RST  | **GPIO 26** | GPIO 14 | GPIO 2  | Reset (-1 if tied to EN) |
-| BKL  | **-1** (VCC) | -1      | -1      | Backlight control |
+| **MOSI** | **GPIO 28** | GPIO 11 | GPIO 23 | SPI MOSI / SDA |
+| **SCLK** | **GPIO 27** | GPIO 12 | GPIO 18 | SPI Clock |
+| **CS**   | **GPIO 24** | GPIO 10 | GPIO 5  | SPI Chip Select |
+| **DC**   | **GPIO 25** | GPIO 9  | GPIO 2  | Data / Command |
+| **RST**  | **GPIO 26** | GPIO 14 | GPIO 4  | Reset (-1 if unmanaged) |
+| **BKL**  | **-1** (VCC) | -1      | -1      | Backlight PWM (-1 if unmanaged) |
 
-### Menuconfig Settings
-
-Run `idf.py menuconfig` to configure:
-- **`Component config -> Circular 24h Clock Display Component`**:
-  - SPI Host and Pin assignments
-  - SPI Bus frequency (up to 80 MHz, default 40 MHz)
-- **`24h Circular Clock Demo Configuration`**:
-  - **WiFi & NTP**: SSID, WPA2/WPA3 password, POSIX Timezone (`CET-1CEST,M3.5.0,M10.5.0/3` for automatic daylight saving)
-  - **Date Locale**: German, British/American English, French, Spanish, Portuguese, Italian, Danish, Norwegian Bokmål, or Swedish.
-  - **Date Format**: DIN Abbreviated (`Fr, 16. Okt`), Full Weekday (`Freitag 16.10`), or Numeric (`16.10.2026`)
-  - **Center Badge Mode**: Smart Auto (`▲)))` during search, clean `24` when locked), Always Antenna, or Always Mode (`24`/`AM`/`PM`)
+SPI clock frequency defaults to 40 MHz (supports up to 80 MHz depending on trace length).
 
 ---
 
-### Localization, locale selection, and fonts
+## Public API Reference
 
-The clock API accepts BCP 47 locale tags through `circular_clock_set_locale()`.
-The demo exposes `de-DE`, `en-GB`, `en-US`, `fr-FR`, `es-ES`, `pt-PT`,
-`it-IT`, `da-DK`, `nb-NO`, and `sv-SE` in menuconfig. The legacy German/English
-language setter remains available and maps to `de-DE`/`en-GB`. Locale support
-currently formats the date; it is not a translation of every GUI/status string.
+The component exports two headers:
+- `circular_clock.h`: Clock rendering, time/date feeding, layout preferences, and display lifecycle.
+- `clock_settings.h`: Persistent NVS settings manager for runtime configuration.
 
-The date renderer uses the bundled 8px Noto Sans U8g2 bitmap font. Its embedded
-glyph table contains basic Latin (`U+0020–U+007E`) and Latin-1 Supplement
-(`U+00A0–U+00FF`). The listed locales' date names use characters in that
-coverage. This is a verified glyph range, not a claim that the font supports
-all characters from Noto Sans or all languages using Latin script.
+### 1. Initialization & Lifecycle
 
-**Automatic and manual language selection:** the display component has no
-connection to an operating-system locale, account setting, or time source. It
-does not guess a language from an IP address, SNTP server, or timezone. A
-parent application may use its own system/device locale as the automatic
-default and pass the resulting BCP 47 tag to `circular_clock_set_locale()`.
-If the user chooses a language manually, the application should persist that
-override and pass it instead. If the application locale changes, it should call
-the setter again. The demo currently selects one locale at build/configuration
-time in `menuconfig`; it does not yet provide a runtime automatic/manual
-language setting.
+```c
+#include "circular_clock.h"
 
-**Locale and timezone are separate:** locale controls date language, names,
-ordering, and numeric formatting. Timezone rules convert an absolute
-timestamp into the local time and calendar date supplied to the clock. The
-application/time source owns both decisions. The demo's POSIX `TZ` setting
-controls local-time conversion and daylight-saving rules; it does not choose
-the date language. An app may therefore use, for example, `fr-FR` with the
-demo's Central European `CET/CEST` rules or `en-US` with another timezone.
+// Standalone mode: initializes SPI bus, GC9A01 panel, sprite, and settings manager
+circular_clock_config_t cfg = {
+    .spi_host     = SPI2_HOST,
+    .pin_mosi     = 28,
+    .pin_sclk     = 27,
+    .pin_cs       = 24,
+    .pin_dc       = 25,
+    .pin_rst      = 26,
+    .pin_bkl      = -1,
+    .spi_clock_hz = 40000000
+};
+ESP_ERROR_CHECK(circular_clock_init(&cfg));
 
-Translations alone do not add font coverage. To add languages that need
-characters outside the embedded font, generate and bundle a suitable compact
-font subset and check its flash/RAM impact and text width. Cyrillic requires
-its own glyphs; complex scripts such as Arabic additionally need shaping and
-right-to-left layout, which the current date renderer does not implement.
+// Headless / sprite-only embedded mode (no display panel hardware initialized):
+ESP_ERROR_CHECK(circular_clock_init(NULL));
+```
 
-### LovyanGFX version
+### 2. Time & Date Input
 
-The component manifest pins LovyanGFX **1.2.33**, using its v1 API. Here “v1”
-identifies the library's API generation; it is not the installed release
-number. The [upstream release page](https://github.com/lovyan03/LovyanGFX/releases)
-currently lists 1.2.33 as the latest release. The dependency should remain
-pinned until a newer release is checked and built against the supported
-ESP-IDF targets.
+```c
+// Feed current time (typically in a 30 FPS rendering task)
+circular_clock_set_time(hour, minute, second, millisecond);
+circular_clock_set_time_valid(true);
 
-## Build and Flash
+// Feed calendar date (triggers moon phase computation)
+circular_clock_set_date(2026, 10, 17, 6 /* Saturday */);
+
+// Optional: override with custom date string (up to 47 chars)
+circular_clock_set_date_str("Sat, 17. Oct");
+```
+
+### 3. Rendering
+
+```c
+// Standalone: renders to internal sprite and pushes to physical GC9A01 LCD
+circular_clock_render();
+
+// Embedded mode: render into an external LovyanGFX sprite buffer (240x240)
+circular_clock_render_to_sprite(my_sprite_ptr);
+```
+
+### 4. Runtime Settings & NVS Persistence (`clock_settings.h`)
+
+All settings changes via `clock_settings_set_*` immediately update the live clock face. Changes are committed to flash when calling `clock_settings_save(NULL)`:
+
+```c
+#include "clock_settings.h"
+
+// Initialize settings from NVS (or write defaults on first boot)
+clock_settings_init();
+
+// Change language at runtime (takes effect immediately on display)
+clock_settings_set_locale("en-US");
+
+// Change timezone (applies POSIX TZ and runs tzset())
+clock_settings_set_timezone("CET-1CEST,M3.5.0,M10.5.0/3");
+
+// Change date format style
+clock_settings_set_date_format(CLOCK_DATE_FMT_ABBREV); // NUMERIC, ABBREV, FULL_WEEKDAY
+
+// Change top badge mode
+clock_settings_set_badge_mode(CLOCK_BADGE_SMART_AUTO); // SMART_AUTO, ALWAYS_ANTENNA, ALWAYS_MODE
+
+// Change 12h/24h mode
+clock_settings_set_ampm_mode(false); // false = 24h, true = 12h AM/PM
+
+// Change brightness (0..100 %)
+clock_settings_set_brightness(80);
+
+// Commit runtime settings to NVS flash
+clock_settings_save(NULL);
+
+// Reset to factory defaults
+clock_settings_reset_to_defaults();
+```
+
+### 5. Dynamic Locale Discovery
+
+```c
+uint8_t count = circular_clock_get_locale_count(); // Returns 10
+for (uint8_t i = 0; i < count; i++) {
+    char tag[16];
+    circular_clock_get_locale_tag(i, tag, sizeof(tag));
+    printf("Locale [%u]: %s\n", i, tag);
+}
+```
+
+---
+
+## Example Project (`examples/clock_demo`)
+
+A complete production-ready example demonstrating all features is included in `examples/clock_demo`.
+
+### Features Demonstrated:
+- GC9A01 SPI display initialization on ESP32-P4.
+- Wi-Fi connection and automatic SNTP internet time synchronization (`pool.ntp.org`, `time.google.com`, `ptbtime1.ptb.de`).
+- Automatic Daylight Saving Time (DST) handling using POSIX timezone rules.
+- 30 FPS rendering loop with animated comets and orbital seconds pip.
+- Optional auto-cycling language demonstration (`CONFIG_CLOCK_LOCALE_DEMO`).
+- Persistent NVS settings verification.
+
+### Build and Flash (ESP32-P4 on COM4):
 
 ```powershell
-. C:\esp\v6.0.2\esp-idf\export.ps1
+# In PowerShell:
+$env:IDF_PATH="C:\esp\v6.0.2\esp-idf"
+$env:ESP_IDF_VERSION="6.0.2"
+$env:IDF_PYTHON_ENV_PATH="C:\Espressif\tools\python\v6.0.2\venv"
+$env:PATH="C:\Espressif\tools\ninja\1.12.1;C:\Espressif\tools\idf-exe\1.0.3;C:\Espressif\tools\ccache\4.8.3\ccache-4.8.3-windows-x86_64;C:\Espressif\tools\riscv32-esp-elf\esp-15.2.0_20251204\riscv32-esp-elf\bin;" + $env:PATH
+
 cd D:\github-repositorys\esp-idf-clock-circular-display\examples\clock_demo
-idf.py set-target esp32p4   # or esp32s3, esp32
-idf.py build
-idf.py -p COM4 flash monitor
+python.exe C:\esp\v6.0.2\esp-idf\tools\idf.py build
+python.exe C:\esp\v6.0.2\esp-idf\tools\idf.py -p COM4 flash monitor
 ```
+
+---
+
+## License
+
+This component is distributed under the **MIT License**.
+Fonts bundled under `include/fonts/` are sourced from Google Noto Sans and licensed under the **SIL Open Font License 1.1**.

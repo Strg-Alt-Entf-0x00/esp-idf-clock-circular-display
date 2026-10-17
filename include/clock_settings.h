@@ -48,15 +48,15 @@ typedef struct {
 esp_err_t clock_settings_init(void);
 
 /**
- * @brief Load current settings from NVS
+ * @brief Load current settings into provided structure
  * @param settings Output structure to fill
- * @return ESP_OK on success, ESP_ERR_NVS_NOT_FOUND if no settings exist
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG if NULL, ESP_ERR_INVALID_STATE if not initialized
  */
 esp_err_t clock_settings_load(clock_settings_t* settings);
 
 /**
- * @brief Save current settings to NVS
- * @param settings Settings to save
+ * @brief Save settings to NVS
+ * @param settings Settings to save, or NULL to save current runtime settings
  * @return ESP_OK on success, error code otherwise
  */
 esp_err_t clock_settings_save(const clock_settings_t* settings);
@@ -68,42 +68,42 @@ esp_err_t clock_settings_save(const clock_settings_t* settings);
 esp_err_t clock_settings_reset_to_defaults(void);
 
 /**
- * @brief Set locale with validation
+ * @brief Set locale with validation and apply immediately to display
  * @param locale BCP 47 locale tag (e.g. "de-DE", "en-US")
  * @return ESP_OK, ESP_ERR_INVALID_ARG, or ESP_ERR_NOT_SUPPORTED
  */
 esp_err_t clock_settings_set_locale(const char* locale);
 
 /**
- * @brief Set timezone with validation
+ * @brief Set timezone with validation and apply immediately to POSIX environment
  * @param timezone POSIX timezone string (e.g. "CET-1CEST,M3.5.0,M10.5.0/3")
  * @return ESP_OK, ESP_ERR_INVALID_ARG, or ESP_ERR_INVALID_SIZE
  */
 esp_err_t clock_settings_set_timezone(const char* timezone);
 
 /**
- * @brief Set date format with validation
+ * @brief Set date format with validation and apply immediately to display
  * @param format Date format enum value
  * @return ESP_OK or ESP_ERR_INVALID_ARG
  */
 esp_err_t clock_settings_set_date_format(clock_date_format_t format);
 
 /**
- * @brief Set badge mode with validation
+ * @brief Set badge mode with validation and apply immediately to display
  * @param mode Badge mode enum value
  * @return ESP_OK or ESP_ERR_INVALID_ARG
  */
 esp_err_t clock_settings_set_badge_mode(clock_badge_mode_t mode);
 
 /**
- * @brief Set 12h/24h mode
+ * @brief Set 12h/24h mode and apply immediately to display
  * @param enable_ampm true for 12h AM/PM, false for 24h
  * @return ESP_OK
  */
 esp_err_t clock_settings_set_ampm_mode(bool enable_ampm);
 
 /**
- * @brief Set display brightness with validation
+ * @brief Set display brightness with validation and apply immediately to display
  * @param brightness Brightness 0-100%
  * @return ESP_OK or ESP_ERR_INVALID_ARG
  */
@@ -148,7 +148,7 @@ bool clock_settings_get_ampm_mode(void);
 uint8_t clock_settings_get_brightness(void);
 
 /**
- * @brief Apply current settings to clock display
+ * @brief Apply current settings to clock display and POSIX timezone
  * 
  * Updates locale, timezone, date format, badge mode, and brightness.
  * Call after loading settings or changing multiple settings.

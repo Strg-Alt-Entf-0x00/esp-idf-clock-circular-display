@@ -20,8 +20,9 @@
 
 static const char* TAG = "circular_clock";
 
-// Declaration from display_hal.cpp
+// Declarations from display_hal.cpp
 esp_err_t circular_clock_hal_init(const circular_clock_config_t* config);
+void display_hal_set_brightness(uint8_t brightness_pct);
 
 struct ClockState {
     int hour = 0;
@@ -136,10 +137,15 @@ esp_err_t circular_clock_init(const circular_clock_config_t* config) {
     
     update_formatted_date_string(s_clock);
     
-    // Initialize hardware
-    err = circular_clock_hal_init(config);
-    if (err != ESP_OK) {
-        return err;
+    // Initialize hardware if config is supplied
+    if (config != nullptr) {
+        err = circular_clock_hal_init(config);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Hardware HAL init failed: %s", esp_err_to_name(err));
+            return err;
+        }
+    } else {
+        ESP_LOGI(TAG, "Initialized in sprite-only / headless mode (external display driver)");
     }
     
     // Apply loaded settings to clock
@@ -361,6 +367,12 @@ void circular_clock_render(void) {
     circular_clock_push_frame();
 }
 
+void circular_clock_set_brightness(uint8_t brightness_pct) {
+    if (brightness_pct > 100) brightness_pct = 100;
+    s_clock.brightness = brightness_pct;
+    display_hal_set_brightness(brightness_pct);
+}
+
 uint8_t circular_clock_get_brightness(void) {
     return s_clock.brightness;
 }
@@ -368,6 +380,10 @@ uint8_t circular_clock_get_brightness(void) {
 esp_err_t circular_clock_get_locale(char* buf, size_t size) {
     if (!buf || size < 16) {
         return ESP_ERR_INVALID_ARG;
+    }
+    
+    if (!s_clock.locale) {
+        s_clock.locale = locale_data_find("de-DE");
     }
     
     if (!s_clock.locale) {

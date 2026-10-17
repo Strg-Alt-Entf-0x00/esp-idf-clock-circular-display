@@ -139,7 +139,7 @@ static const char* const s_months_sv[] = {
 // ============================================================================
 static const locale_definition_t s_locales[] = {
     {
-        .tag = "de-de",
+        .tag = "de-DE",
         .weekdays_short = s_wdays_de_short,
         .weekdays_full = s_wdays_de_full,
         .months_short = s_months_de,
@@ -150,7 +150,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = false
     },
     {
-        .tag = "en-gb",
+        .tag = "en-GB",
         .weekdays_short = s_wdays_en_short,
         .weekdays_full = s_wdays_en_full,
         .months_short = s_months_en,
@@ -161,7 +161,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = false
     },
     {
-        .tag = "en-us",
+        .tag = "en-US",
         .weekdays_short = s_wdays_en_short,
         .weekdays_full = s_wdays_en_full,
         .months_short = s_months_en,
@@ -172,7 +172,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = true
     },
     {
-        .tag = "fr-fr",
+        .tag = "fr-FR",
         .weekdays_short = s_wdays_fr_short,
         .weekdays_full = s_wdays_fr_full,
         .months_short = s_months_fr,
@@ -183,7 +183,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = false
     },
     {
-        .tag = "es-es",
+        .tag = "es-ES",
         .weekdays_short = s_wdays_es_short,
         .weekdays_full = s_wdays_es_full,
         .months_short = s_months_es,
@@ -194,7 +194,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = false
     },
     {
-        .tag = "pt-pt",
+        .tag = "pt-PT",
         .weekdays_short = s_wdays_pt_short,
         .weekdays_full = s_wdays_pt_full,
         .months_short = s_months_pt,
@@ -205,7 +205,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = false
     },
     {
-        .tag = "it-it",
+        .tag = "it-IT",
         .weekdays_short = s_wdays_it_short,
         .weekdays_full = s_wdays_it_full,
         .months_short = s_months_it,
@@ -216,7 +216,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = false
     },
     {
-        .tag = "da-dk",
+        .tag = "da-DK",
         .weekdays_short = s_wdays_da_short,
         .weekdays_full = s_wdays_da_full,
         .months_short = s_months_da,
@@ -227,7 +227,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = false
     },
     {
-        .tag = "nb-no",
+        .tag = "nb-NO",
         .weekdays_short = s_wdays_nb_short,
         .weekdays_full = s_wdays_nb_full,
         .months_short = s_months_nb,
@@ -238,7 +238,7 @@ static const locale_definition_t s_locales[] = {
         .numeric_month_first = false
     },
     {
-        .tag = "sv-se",
+        .tag = "sv-SE",
         .weekdays_short = s_wdays_sv_short,
         .weekdays_full = s_wdays_sv_full,
         .months_short = s_months_sv,
@@ -292,28 +292,17 @@ const locale_definition_t* locale_data_find(const char* tag) {
         return NULL;
     }
     
-    // Normalize to lowercase
-    char normalized[16];
-    size_t length = 0;
-    for (; tag[length] != '\0' && length < sizeof(normalized) - 1; ++length) {
-        const char ch = tag[length];
-        normalized[length] = (ch >= 'A' && ch <= 'Z') 
-                                ? (char)(ch - 'A' + 'a') 
-                                : ch;
-    }
-    normalized[length] = '\0';
-    
-    // Exact match first
+    // Exact match first (case-insensitive)
     for (uint8_t i = 0; i < LOCALE_COUNT; ++i) {
-        if (strcmp(normalized, s_locales[i].tag) == 0) {
+        if (strcasecmp(tag, s_locales[i].tag) == 0) {
             return &s_locales[i];
         }
     }
     
-    // Bare language tag fallback (e.g. "de" -> "de-de")
-    if (length == 2) {
+    // Bare language tag fallback (e.g. "de" -> "de-DE")
+    if (strlen(tag) == 2) {
         for (uint8_t i = 0; i < LOCALE_COUNT; ++i) {
-            if (strncmp(normalized, s_locales[i].tag, 2) == 0) {
+            if (strncasecmp(tag, s_locales[i].tag, 2) == 0) {
                 return &s_locales[i];
             }
         }

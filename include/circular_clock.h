@@ -52,8 +52,9 @@ typedef enum {
 } clock_badge_mode_t;
 
 /**
- * @brief Initialize circular display hardware, SPI panel, and LovyanGFX sprite buffer
- * @param config Pointer to hardware pin and bus configuration
+ * @brief Initialize circular display hardware, SPI panel, LovyanGFX sprite buffer, and clock settings
+ * @param config Pointer to hardware pin and bus configuration, or NULL for sprite-only / headless mode
+ *               (e.g. when rendering into an external LovyanGFX sprite buffer without managing hardware)
  * @return ESP_OK on success, error code otherwise
  */
 esp_err_t circular_clock_init(const circular_clock_config_t* config);
@@ -241,3 +242,5 @@ void circular_clock_push_frame(void);
 #ifdef __cplusplus
 }
 #endif
+
+#include "clock_settings.h"

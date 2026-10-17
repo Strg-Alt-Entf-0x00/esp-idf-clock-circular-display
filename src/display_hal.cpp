@@ -138,7 +138,7 @@ esp_err_t circular_clock_hal_init(const circular_clock_config_t* config) {
     return ESP_OK;
 }
 
-void circular_clock_set_brightness(uint8_t brightness_pct) {
+void display_hal_set_brightness(uint8_t brightness_pct) {
     if (s_backlight_pin < 0) return;
     if (brightness_pct > 100) brightness_pct = 100;
     uint32_t duty = (255 * brightness_pct) / 100;
