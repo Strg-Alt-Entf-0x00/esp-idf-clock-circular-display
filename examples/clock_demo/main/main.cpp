@@ -27,6 +27,7 @@
 #include "esp_log.h"
 #include "circular_clock.h"
 #include "wifi_sntp_manager.h"
+#include "locale_demo.h"
 
 static const char* TAG = "clock_demo";
 
@@ -136,7 +137,12 @@ extern "C" void app_main(void) {
     tzset();
 
     // ========================================================================
-    // 3. Start time-source acquisition
+    // 3. Locale Demo: Print all available locales
+    // ========================================================================
+    locale_demo_print_all();
+
+    // ========================================================================
+    // 4. Start time-source acquisition
     // ========================================================================
     circular_clock_set_time_valid(false);
     circular_clock_set_radio_status(CIRCULAR_RADIO_UNKNOWN);
@@ -164,8 +170,20 @@ extern "C" void app_main(void) {
     int last_month = 0;
     int last_day = 0;
 
+#if defined(CONFIG_CLOCK_LOCALE_DEMO) && CONFIG_CLOCK_LOCALE_DEMO
     // ========================================================================
-    // 5. 30 FPS Render Loop
+    // 5. Locale Demo Mode: Cycle through all languages
+    // ========================================================================
+    ESP_LOGI(TAG, "Locale Demo Mode ENABLED - will cycle all locales");
+    
+    uint8_t locale_count = circular_clock_get_locale_count();
+    uint8_t current_locale_index = 0;
+    TickType_t last_locale_switch = xTaskGetTickCount();
+    const TickType_t LOCALE_SWITCH_INTERVAL = pdMS_TO_TICKS(10000); // 10 seconds
+#endif
+
+    // ========================================================================
+    // 6. 30 FPS Render Loop
     // ========================================================================
     while (true) {
         const bool sync_notification = s_sync_notification_pending.exchange(false);
@@ -220,6 +238,22 @@ extern "C" void app_main(void) {
         circular_clock_render();
 
         frame_count++;
+
+#if defined(CONFIG_CLOCK_LOCALE_DEMO) && CONFIG_CLOCK_LOCALE_DEMO
+        // Auto-cycle locales every 10 seconds
+        TickType_t now_ticks = xTaskGetTickCount();
+        if ((now_ticks - last_locale_switch) >= LOCALE_SWITCH_INTERVAL) {
+            char tag[16];
+            if (circular_clock_get_locale_tag(current_locale_index, tag, sizeof(tag)) == ESP_OK) {
+                ESP_LOGI(TAG, "[LOCALE DEMO] Switching to [%d/%d]: %s", 
+                         current_locale_index + 1, locale_count, tag);
+                circular_clock_set_locale(tag);
+            }
+            
+            current_locale_index = (current_locale_index + 1) % locale_count;
+            last_locale_switch = now_ticks;
+        }
+#endif
 
         // Status log every 5 seconds
         TickType_t now_ticks = xTaskGetTickCount();

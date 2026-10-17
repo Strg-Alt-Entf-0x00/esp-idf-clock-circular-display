@@ -22,5 +22,5 @@ idf_component_register(
         nvs_flash
 )
 
-# C++17 support
-target_compile_options(${COMPONENT_LIB} PRIVATE -std=gnu++17)
+# C++17 support for C++ files only
+target_compile_options(${COMPONENT_LIB} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=gnu++17>)

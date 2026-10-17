@@ -98,4 +98,12 @@ menu "24h Circular Clock Demo Configuration"
             bool "Always Mode ('24' or AM/PM always visible)"
     endchoice
 
+    config CLOCK_LOCALE_DEMO
+        bool "Enable Locale Demo (cycle all languages)"
+        default n
+        help
+            If enabled, the clock will automatically cycle through all 10
+            supported locales every 10 seconds. Useful for hardware testing
+            and visual verification of date formatting.
+
 endmenu
