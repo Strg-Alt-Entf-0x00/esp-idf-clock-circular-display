@@ -5,7 +5,7 @@
  *  - CY-36: Circular Badge (Smart Auto Antenna ▲))) / "24" / AM-PM)
  *  - CY-8:  Digital clock HH : MM : SS (16pt font, 18px horizontal step)
  *  - CY+14: Date readout (DIN German / English formatted)
- *  - CY+34: Astronomical Moon Phase (Julian Day accurate calculation)
+ *  - CY+45: Approximate calendar-day lunar phase
  */
 
 #include "center_renderer.h"
@@ -14,15 +14,14 @@
 #include "radio_animator.h"
 #include <cmath>
 #include <cstdio>
-#include <cstring>
-#include <cctype>
 
 using namespace clock_theme;
 
 void center_renderer_draw(lgfx::LGFX_Sprite* sprite,
                           int hour, int minute, int second,
-                          int year, int month, int day,
                           const char* date_str,
+                          bool time_valid, bool date_valid,
+                          bool moon_phase_valid, float moon_phase,
                           circular_radio_status_t radio_status,
                           clock_badge_mode_t badge_mode,
                           bool lock_recently_acquired,
@@ -48,13 +47,18 @@ void center_renderer_draw(lgfx::LGFX_Sprite* sprite,
         show_antenna = false;
     } else {
         // CLOCK_BADGE_SMART_AUTO
-        show_antenna = (radio_status == CIRCULAR_RADIO_SEARCHING) || lock_recently_acquired;
+        show_antenna = (radio_status == CIRCULAR_RADIO_SEARCHING) ||
+                       (radio_status == CIRCULAR_RADIO_LOCKED &&
+                        lock_recently_acquired);
     }
 
     if (show_antenna) {
         // Draw Precision Antenna Symbol ▲)))
-        bool is_locked = (radio_status == CIRCULAR_RADIO_LOCKED);
-        uint16_t tower_color = is_locked ? COLOR_RADIO_LOCKED : COLOR_RADIO_SEARCH;
+        const bool is_locked = (radio_status == CIRCULAR_RADIO_LOCKED);
+        const bool is_searching = (radio_status == CIRCULAR_RADIO_SEARCHING);
+        const uint16_t tower_color = is_locked ? COLOR_RADIO_LOCKED :
+                                     (is_searching ? COLOR_RADIO_SEARCH :
+                                                     COLOR_RADIO_QUARTZ);
 
         // Mast position
         int mast_x = badge_x - 3;
@@ -75,15 +79,15 @@ void center_renderer_draw(lgfx::LGFX_Sprite* sprite,
         int wave_phase = g_radio_animator.getAntennaWavePhase();
 
         // Wave 1 (r=3)
-        if (is_locked || wave_phase >= 1) {
+        if (is_locked || (is_searching && wave_phase >= 1)) {
             sprite->drawArc(mast_x, mast_top_y - 1, 3, 4, -45.0f, 45.0f, tower_color);
         }
         // Wave 2 (r=6)
-        if (is_locked || wave_phase >= 2) {
+        if (is_locked || (is_searching && wave_phase >= 2)) {
             sprite->drawArc(mast_x, mast_top_y - 1, 6, 7, -45.0f, 45.0f, tower_color);
         }
         // Wave 3 (r=9)
-        if (is_locked || wave_phase >= 3) {
+        if (is_locked || (is_searching && wave_phase >= 3)) {
             sprite->drawArc(mast_x, mast_top_y - 1, 8, 9, -40.0f, 40.0f, tower_color);
         }
     } else {
@@ -91,7 +95,11 @@ void center_renderer_draw(lgfx::LGFX_Sprite* sprite,
         sprite->setFont(FONT_SMALL);
         sprite->setTextColor(lgfx::color565(170, 205, 255));
 
-        if (ampm_mode) {
+        if (radio_status == CIRCULAR_RADIO_UNKNOWN) {
+            sprite->drawString("?", badge_x, badge_y);
+        } else if (radio_status == CIRCULAR_RADIO_FREE_RUN) {
+            sprite->drawString("H", badge_x, badge_y);
+        } else if (ampm_mode) {
             sprite->drawString(is_pm ? "PM" : "AM", badge_x, badge_y);
         } else {
             sprite->drawString("24", badge_x, badge_y);
@@ -103,13 +111,19 @@ void center_renderer_draw(lgfx::LGFX_Sprite* sprite,
     // ========================================================================
     char h_str[4], m_str[4], s_str[4];
     int display_hour = hour;
-    if (ampm_mode) {
+    if (time_valid && ampm_mode) {
         display_hour = hour % 12;
         if (display_hour == 0) display_hour = 12;
     }
-    snprintf(h_str, sizeof(h_str), "%02d", display_hour);
-    snprintf(m_str, sizeof(m_str), "%02d", minute);
-    snprintf(s_str, sizeof(s_str), "%02d", second);
+    if (time_valid) {
+        snprintf(h_str, sizeof(h_str), "%02d", display_hour);
+        snprintf(m_str, sizeof(m_str), "%02d", minute);
+        snprintf(s_str, sizeof(s_str), "%02d", second);
+    } else {
+        snprintf(h_str, sizeof(h_str), "--");
+        snprintf(m_str, sizeof(m_str), "--");
+        snprintf(s_str, sizeof(s_str), "--");
+    }
 
     sprite->setFont(FONT_DIGITAL);
 
@@ -136,87 +150,45 @@ void center_renderer_draw(lgfx::LGFX_Sprite* sprite,
     // ========================================================================
     // 3. Date Readout (CY + 14)
     // ========================================================================
-    if (date_str && date_str[0] != '\0') {
+    const bool calendar_display_valid = time_valid && date_valid;
+    if (calendar_display_valid && date_str && date_str[0] != '\0') {
         sprite->setFont(FONT_SMALL);
         sprite->setTextColor(lgfx::color565(170, 185, 205));
         sprite->drawString(date_str, CX, CENTER_DATE_Y);
     }
 
     // ========================================================================
-    // 4. Astronomical Moon Phase (Centered, Radius 10, Swiss Horology Earthshine)
+    // 4. Approximate Moon Phase (Centered, Radius 10, Swiss Horology Earthshine)
     // ========================================================================
     int moon_x = CX;
     int moon_y = CENTER_MOON_Y;
     int moon_r = CENTER_MOON_RADIUS;
 
-    int yr = year > 0 ? year : 2026;
-    int mo = month > 0 ? month : 10;
-    int dy = day > 0 ? day : 16;
+    if (calendar_display_valid && moon_phase_valid) {
+        // The phase is computed by the clock model only when a valid date is set.
+        sprite->fillCircle(moon_x, moon_y, moon_r, COLOR_MOON_DARK);
+        const uint16_t moon_lit = COLOR_MOON_LIT;
 
-    // Extract from date_str if available and parameters defaulted
-    if (year <= 0 && date_str) {
-        int d = 0, m = 0, y = 0;
-        const char* p = date_str;
-        while (*p && !isdigit((unsigned char)*p)) p++;
-        if (sscanf(p, "%d.%d.%d", &d, &m, &y) >= 2) {
-            dy = d;
-            mo = m;
-            if (y > 0) yr = (y < 100) ? 2000 + y : y;
-        }
-    }
-
-    // Julian Day calculation for lunar age
-    int temp_y = (mo < 3) ? yr - 1 : yr;
-    int temp_m = (mo < 3) ? mo + 12 : mo;
-    int j_a = temp_y / 100;
-    int j_b = 2 - j_a + (j_a / 4);
-    long jd = (long)(365.25 * (temp_y + 4716)) + (long)(30.6001 * (temp_m + 1)) + dy + j_b - 1524;
-    double days_since_new = (double)(jd - 2460321) + 0.5; // Jan 11, 2024 New Moon reference
-    double synodic = 29.53058867;
-    float phase = (float)(fmod(days_since_new, synodic) / synodic);
-    if (phase < 0.0f) phase += 1.0f;
-
-    // 1. Dark lunar body (Earthshine / Da Vinci Glow - faint midnight slate)
-    sprite->fillCircle(moon_x, moon_y, moon_r, COLOR_MOON_DARK);
-
-    // 2. Illuminated lunar phase (Brilliant pearl silver-white)
-    uint16_t moon_lit = COLOR_MOON_LIT;
-
-    if (phase < 0.015f || phase > 0.985f) {
-        // New Moon: completely in earthshine shadow
-    } else if (fabsf(phase - 0.5f) < 0.015f) {
-        // Full Moon: completely illuminated
-        sprite->fillCircle(moon_x, moon_y, moon_r, moon_lit);
-    } else {
-        // Celestial terminator ellipse calculation: terminator x = w * cos(2*pi*phase)
-        float k = cosf(phase * 2.0f * (float)M_PI);
-
-        for (int row = -moon_r; row <= moon_r; row++) {
-            float w2 = (float)(moon_r * moon_r - row * row);
-            if (w2 < 0.0f) continue;
-            float w = sqrtf(w2);
-
-            float lit_start_f, lit_end_f;
-            if (phase < 0.5f) {
-                // Waxing (Zunehmend): illuminated on the right side
-                lit_start_f = w * k;
-                lit_end_f   = w;
-            } else {
-                // Waning (Abnehmend): illuminated on the left side
-                lit_start_f = -w;
-                lit_end_f   = -w * k;
-            }
-
-            int x_start = (int)roundf((float)moon_x + lit_start_f);
-            int x_end   = (int)roundf((float)moon_x + lit_end_f);
-            int len = x_end - x_start + 1;
-
-            if (len > 0) {
-                sprite->drawFastHLine(x_start, moon_y + row, len, moon_lit);
+        if (moon_phase < 0.015f || moon_phase > 0.985f) {
+            // New Moon: completely in earthshine shadow.
+        } else if (fabsf(moon_phase - 0.5f) < 0.015f) {
+            // Full Moon: completely illuminated.
+            sprite->fillCircle(moon_x, moon_y, moon_r, moon_lit);
+        } else {
+            const float k = cosf(moon_phase * 2.0f * (float)M_PI);
+            for (int row = -moon_r; row <= moon_r; ++row) {
+                const float w2 = (float)(moon_r * moon_r - row * row);
+                const float w = sqrtf(w2);
+                const float lit_start_f = moon_phase < 0.5f ? w * k : -w;
+                const float lit_end_f = moon_phase < 0.5f ? w : -w * k;
+                const int x_start = (int)roundf((float)moon_x + lit_start_f);
+                const int x_end = (int)roundf((float)moon_x + lit_end_f);
+                const int len = x_end - x_start + 1;
+                if (len > 0) {
+                    sprite->drawFastHLine(x_start, moon_y + row, len, moon_lit);
+                }
             }
         }
+        sprite->drawCircle(moon_x, moon_y, moon_r, COLOR_MOON_BORDER);
     }
-
-    // 3. Subtle crisp outer bezel rim
-    sprite->drawCircle(moon_x, moon_y, moon_r, COLOR_MOON_BORDER);
 }

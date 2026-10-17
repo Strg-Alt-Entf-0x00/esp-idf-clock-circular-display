@@ -1,6 +1,6 @@
 # 24h Circular Radio Clock (Funkuhr) for ESP-IDF
 
-High-precision 24-hour circular radio clock component and demo application for round displays (GC9A01 240x240, LovyanGFX v1) on ESP32-P4, ESP32-S3, and ESP32.
+24-hour circular clock display component and demo application for round displays (GC9A01 240x240, LovyanGFX v1) on ESP32-P4, ESP32-S3, and ESP32.
 
 ![Target](https://img.shields.io/badge/Target-ESP32--P4%20%7C%20S3%20%7C%20Classic-blue)
 ![IDF](https://img.shields.io/badge/ESP--IDF-v6.0.2-green)
@@ -17,7 +17,7 @@ High-precision 24-hour circular radio clock component and demo application for r
                                       |
                            [CY+14: Date "Fr, 16. Okt"]
                                       |
-                      [CY+45: Astronomical Moon Phase]
+                      [CY+45: Approximate Moon Phase]
                                       |
   [R 69..72: Blue 60m Comet] <--------+--------> [R 82: 60m Scale (60, 05..55)]
                                       |
@@ -37,10 +37,10 @@ High-precision 24-hour circular radio clock component and demo application for r
 - **R = 82**: **60m Minute Scale** (8pt Noto Sans font, 60 at top, 05..55, 30 at bottom; active 5m interval pure white, inactive dark slate gray).
 - **R = 69..72**: **Blue/Cyan 60m Minute Comet** (Fading tail 45°, glowing tip bead $r=3\text{px}$).
 - **Compact Watchmaker Center ($R \le 48$)**:
-  - **CY - 36**: Circular Badge with vector radio tower `▲)))` during search or clean `24` / `AM` / `PM` when locked.
+  - **CY - 36**: Circular Badge with vector radio tower `▲)))` during search, `?` when time is unknown, `H` during holdover, or `24` / `AM` / `PM` in normal display mode.
   - **CY - 8**: Digital readout `HH : MM : SS` (16pt Noto Sans, 18px horizontal step: HH crimson red, colons slate gray, MM electric cyan, SS luminous amber).
   - **CY + 14**: Clean date display with DIN format (e.g. `Fr, 16. Okt` / `Fri 16 Oct`).
-  - **CY + 45**: Real-time astronomical Moon Phase (Radius 10, true elliptic terminator with Swiss horology Earthshine).
+  - **CY + 45**: Approximate calendar-day Moon phase (Radius 10).
 
 ---
 
@@ -53,25 +53,51 @@ Native pre-rendered Google Noto Sans U8g2 fonts (SIL Open Font License 1.1):
 
 ---
 
-## Funkuhr (Radio Clock) Feature Integration
+## Time Synchronization Status Display
 
-1. **Status State Machine**:
-   - `CIRCULAR_RADIO_SEARCHING`: Actively seeking atomic time signal.
-   - `CIRCULAR_RADIO_LOCKED`: Atomic lock confirmed.
-   - `CIRCULAR_RADIO_FREE_RUN`: Standalone quartz operation.
+The component is a display/rendering library. The application supplies time,
+date, validity, and source status; the component does not acquire or validate
+time. The demo uses SNTP where the target has a supported Wi-Fi backend.
+Network synchronization does not guarantee atomic-clock accuracy.
+Call the clock API from one application task; event callbacks should hand off
+updates to that task rather than calling rendering or setters concurrently.
+
+1. **Caller-provided status**:
+   - `CIRCULAR_RADIO_UNKNOWN`: No valid time source has been established; the
+     display shows `--:--:--`.
+   - `CIRCULAR_RADIO_SEARCHING`: The application reports an active sync attempt.
+   - `CIRCULAR_RADIO_LOCKED`: The application reports a confirmed sync event;
+     this is not a measurement of ongoing reception or accuracy.
+   - `CIRCULAR_RADIO_FREE_RUN`: The application reports local-clock holdover.
+   - A confirmed synchronization cannot be reported as `LOCKED` while the
+     supplied time is invalid. The demo keeps `SEARCHING` visible during initial
+     acquisition and keeps holdover visible until a new sync succeeds after
+     connectivity returns.
 
 2. **Antenna Symbol `▲)))` (CY - 36)**:
    - In `SEARCHING`: Animated radio waves radiating dynamically ($0 \to 1 \to 2 \to 3$).
-   - In `LOCKED`: High-contrast solid cyan/emerald atomic lock symbol.
+   - After a confirmed sync: A brief visual confirmation; it is not a precision
+     or atomic-time measurement.
+   - In Smart Auto mode, `?` marks unknown time and `H` marks local-clock
+     holdover without an active synchronization source.
 
 3. **Radar Sweep Animation (R = 96)**:
    - During `SEARCHING`, an electric phosphor radar sweep rotates across the Trennschiene, illuminating tick marks and dots in its wake.
 
-4. **"Atomic Calibration Sweep"**:
-   - Upon atomic lock acquisition, both comet pointers execute a majestic multi-turn forward sweep and cubic ease-out pendulum deceleration into exact atomic time.
+4. **Synchronization transition animation**:
+   - Upon a caller-reported sync event, both comet pointers execute a visual
+     multi-turn sweep. This animation does not calibrate or adjust the clock.
 
-5. **Time Synchronization**:
-   - Modular backend prepared for WiFi/SNTP, DCF77 longwave, and GPS NMEA.
+5. **Time synchronization**:
+   - The example currently implements Wi-Fi/SNTP only on targets with built-in
+     Wi-Fi support. DCF77 and GPS/NMEA are not implemented.
+
+The date-based moon icon is an approximate visualization using a mean
+synodic-month model. It is not an ephemeris or a precision astronomical
+calculation. Date and moon phase are hidden unless both time validity and
+calendar-date validity are true. A custom date string is caller-formatted and
+does not provide calendar data for moon-phase calculation. Custom strings are
+limited to 47 bytes; longer strings are rejected and logged.
 
 ---
 
@@ -108,7 +134,7 @@ Run `idf.py menuconfig` to configure:
 
 ```powershell
 . C:\esp\v6.0.2\esp-idf\export.ps1
-cd D:\github-repositorys\esp-idf-formant-clock-circular-display\examples\clock_demo
+cd D:\github-repositorys\esp-idf-clock-circular-display\examples\clock_demo
 idf.py set-target esp32p4   # or esp32s3, esp32
 idf.py build
 idf.py -p COM4 flash monitor

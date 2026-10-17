@@ -63,13 +63,31 @@ typedef enum {
 esp_err_t circular_clock_init(const circular_clock_config_t* config);
 
 /**
+ * The clock API is not internally synchronized. Call setters, status getters,
+ * and rendering from one application task; event callbacks should hand data
+ * back to that task rather than calling the clock API directly.
+ */
+
+/**
  * @brief Set current time
  * @param hour Hour (0..23)
  * @param minute Minute (0..59)
  * @param second Second (0..59)
  * @param millisecond Sub-second millisecond (0..999) for fluid animations
+ *
+ * Call circular_clock_set_time_valid(true) only after supplying trusted time.
+ * Out-of-range values invalidate the displayed time.
  */
 void circular_clock_set_time(int hour, int minute, int second, int millisecond);
+
+/**
+ * @brief Set whether the supplied clock time is currently valid
+ *
+ * The display component does not determine time validity or contact a time
+ * source. The application must set this explicitly; unknown time is rendered
+ * as "--:--:--".
+ */
+void circular_clock_set_time_valid(bool valid);
 
 /**
  * @brief Set calendar date
@@ -77,12 +95,16 @@ void circular_clock_set_time(int hour, int minute, int second, int millisecond);
  * @param month Month (1..12)
  * @param day Day of month (1..31)
  * @param wday Day of week (0=Sun .. 6=Sat)
+ *
+ * Invalid calendar values clear the displayed date and moon phase.
  */
 void circular_clock_set_date(int year, int month, int day, int wday);
 
 /**
  * @brief Set formatted custom date string (overrides automatic date formatting)
- * @param date_str Null-terminated date string (or NULL to revert to auto)
+ * @param date_str Caller-formatted string, at most 47 bytes (NULL/empty reverts to auto)
+ *
+ * Overlong input clears the date and is reported in the log.
  */
 void circular_clock_set_date_str(const char* date_str);
 
@@ -102,8 +124,12 @@ void circular_clock_set_date_format(clock_date_format_t fmt);
 void circular_clock_set_badge_mode(clock_badge_mode_t mode);
 
 /**
- * @brief Set radio synchronization status
- * @param status Status: CIRCULAR_RADIO_SEARCHING, CIRCULAR_RADIO_LOCKED, CIRCULAR_RADIO_FREE_RUN
+ * @brief Set caller-owned time-source status for display
+ *
+ * This only updates presentation state; it does not acquire, validate, or
+ * synchronize time. CIRCULAR_RADIO_FREE_RUN represents caller-reported
+ * holdover, while CIRCULAR_RADIO_UNKNOWN means no valid time source is known.
+ * The legacy function and enum names are retained for source compatibility.
  */
 void circular_clock_set_radio_status(circular_radio_status_t status);
 
@@ -113,16 +139,15 @@ void circular_clock_set_radio_status(circular_radio_status_t status);
 circular_radio_status_t circular_clock_get_radio_status(void);
 
 /**
- * @brief Trigger an "Atomic Calibration Sweep" animation
+ * @brief Trigger the visual synchronization transition animation
  *
- * Simulates the mechanical/electronic homing and settling sweep of both
- * comet pointers into the exact atomic time position (typically executed
- * upon atomic sync lock or system power-up).
+ * This is a presentation effect only. It does not calibrate or adjust the
+ * supplied clock time.
  */
 void circular_clock_trigger_calibration_sweep(void);
 
 /**
- * @brief Check if an atomic calibration sweep is currently in progress
+ * @brief Check if the synchronization transition animation is in progress
  */
 bool circular_clock_is_calibrating(void);
 

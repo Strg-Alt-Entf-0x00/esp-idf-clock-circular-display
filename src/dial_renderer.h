@@ -11,4 +11,6 @@
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
-void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int second, int millisecond, circular_radio_status_t radio_status);
+void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int second,
+                        int millisecond, bool time_valid,
+                        circular_radio_status_t radio_status);

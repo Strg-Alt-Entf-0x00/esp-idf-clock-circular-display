@@ -1,6 +1,6 @@
 /**
  * @file radio_animator.h
- * @brief Animation controller for radar sweep and atomic calibration sweep
+ * @brief Animation controller for radar and synchronization transition effects
  */
 
 #pragma once

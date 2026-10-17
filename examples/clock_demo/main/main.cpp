@@ -9,22 +9,22 @@
  *
  * Demonstrates:
  *  - Dual-ring luxury dial with 24h red comet & 60m cyan comet
- *  - High-precision Trennschiene divider track with pulsing amber second pip
- *  - Funkuhr Status: SEARCHING -> LOCKED -> FREE_RUN
+ *  - Minute divider track with pulsing amber second pip
+ *  - Time status: UNKNOWN -> SEARCHING -> SYNCHRONIZED -> HOLDOVER
  *  - Smart Auto Badge at CY-36 (clean "24", antenna during sync)
  *  - German / English DIN date format (e.g. "Fr, 16. Okt")
  *  - WiFi & SNTP Internet Time Synchronization (pool.ntp.org, time.google.com, ptbtime1.ptb.de)
  *  - Automatic daylight saving (Sommerzeit/Winterzeit) via CET/CEST POSIX timezone
- *  - Real-time astronomical Moon Phase from Julian Day calculation
+ *  - Approximate date-based moon phase
  */
 
 #include <stdio.h>
+#include <atomic>
 #include <time.h>
 #include <sys/time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "esp_timer.h"
 #include "circular_clock.h"
 #include "wifi_sntp_manager.h"
 
@@ -42,19 +42,21 @@ static const char* TAG = "clock_demo";
 #define CONFIG_CLOCK_TIMEZONE "CET-1CEST,M3.5.0,M10.5.0/3"
 #endif
 
-static bool s_atomic_sync_done = false;
+static std::atomic<bool> s_sync_notification_pending{false};
 
 static void on_ntp_sync_completed(void) {
-    ESP_LOGI(TAG, "========================================================");
-    ESP_LOGI(TAG, "  ATOMIC CLOCK SYNCHRONIZATION CONFIRMED VIA INTERNET   ");
-    ESP_LOGI(TAG, "========================================================");
-    s_atomic_sync_done = true;
-    circular_clock_set_radio_status(CIRCULAR_RADIO_LOCKED);
+    s_sync_notification_pending.store(true);
+}
+
+static bool is_plausible_system_time(time_t timestamp) {
+    constexpr time_t earliest_supported = 1577836800;  // 2020-01-01 UTC
+    constexpr time_t latest_supported = 4102444799;    // 2099-12-31 UTC
+    return timestamp >= earliest_supported && timestamp <= latest_supported;
 }
 
 extern "C" void app_main(void) {
     ESP_LOGI(TAG, "========================================================");
-    ESP_LOGI(TAG, "   24h LUXUS-FUNKUHR (CIRCULAR ATOMIC CLOCK DEMO)      ");
+    ESP_LOGI(TAG, "   24h LUXUS-FUNKUHR (CIRCULAR CLOCK DEMO)             ");
     ESP_LOGI(TAG, "   Target: %s | Display: GC9A01 240x240 SPI            ", CONFIG_IDF_TARGET);
     ESP_LOGI(TAG, "========================================================");
 
@@ -111,59 +113,86 @@ extern "C" void app_main(void) {
     setenv("TZ", CONFIG_CLOCK_TIMEZONE, 1);
     tzset();
 
-    // Baseline offline time (will be overwritten once NTP locks)
-    time_t t_now = time(NULL);
-    struct tm cur_boot;
-    localtime_r(&t_now, &cur_boot);
-
-    circular_clock_set_date(cur_boot.tm_year + 1900, cur_boot.tm_mon + 1, cur_boot.tm_mday, cur_boot.tm_wday);
-
     // ========================================================================
     // 3. Funkuhr Signal Acquisition Start
     // ========================================================================
-    ESP_LOGI(TAG, "Starting Funkuhr in SEARCHING mode (Radar sweep active)");
-    circular_clock_set_radio_status(CIRCULAR_RADIO_SEARCHING);
+    circular_clock_set_time_valid(false);
+    circular_clock_set_radio_status(CIRCULAR_RADIO_UNKNOWN);
 
-    // ========================================================================
-    // 4. WiFi & SNTP Connection (with provided credentials)
-    // ========================================================================
-    ESP_LOGI(TAG, "Connecting to WiFi SSID: '%s'...", CONFIG_CLOCK_WIFI_SSID);
+    bool time_acquisition_started = false;
+#if defined(CONFIG_CLOCK_WIFI_ENABLE) && CONFIG_CLOCK_WIFI_ENABLE
+    ESP_LOGI(TAG, "Starting Wi-Fi/SNTP time acquisition");
     esp_err_t wifi_ret = wifi_sntp_manager_start(CONFIG_CLOCK_WIFI_SSID,
-                                                 CONFIG_CLOCK_WIFI_PASSWORD,
-                                                 on_ntp_sync_completed);
-    if (wifi_ret != ESP_OK) {
-        ESP_LOGW(TAG, "WiFi start returned %s. Proceeding in autonomous quartz demo mode.", esp_err_to_name(wifi_ret));
+                                                  CONFIG_CLOCK_WIFI_PASSWORD,
+                                                  on_ntp_sync_completed);
+    if (wifi_ret == ESP_OK) {
+        time_acquisition_started = true;
+        circular_clock_set_radio_status(CIRCULAR_RADIO_SEARCHING);
+    } else {
+        ESP_LOGW(TAG, "Time acquisition unavailable: %s",
+                 esp_err_to_name(wifi_ret));
     }
+#else
+    ESP_LOGI(TAG, "Wi-Fi/SNTP is disabled; time will remain unknown");
+#endif
 
-    uint32_t boot_ms = (uint32_t)(esp_timer_get_time() / 1000);
-    bool simulated_lock_done = false;
     uint32_t frame_count = 0;
     TickType_t last_log = xTaskGetTickCount();
+    int last_year = 0;
+    int last_month = 0;
+    int last_day = 0;
 
     // ========================================================================
-    // 5. High-Precision 30 FPS Render Loop
+    // 5. 30 FPS Render Loop
     // ========================================================================
     while (true) {
-        uint32_t current_ms = (uint32_t)(esp_timer_get_time() / 1000);
-        uint32_t elapsed_ms = current_ms - boot_ms;
+        const bool sync_notification = s_sync_notification_pending.exchange(false);
 
-        // Fallback demo synchronization if offline or waiting for WiFi
-        if (!s_atomic_sync_done && !simulated_lock_done && elapsed_ms >= 6000) {
-            ESP_LOGI(TAG, ">>> SIGNAL ACQUIRED! Calibrating atomic lock <<<");
-            circular_clock_set_radio_status(CIRCULAR_RADIO_LOCKED);
-            simulated_lock_done = true;
+        struct timeval tv_cur;
+        const bool have_system_time = gettimeofday(&tv_cur, NULL) == 0;
+        struct tm cur_tm;
+        const bool time_valid = have_system_time &&
+                                is_plausible_system_time(tv_cur.tv_sec) &&
+                                localtime_r(&tv_cur.tv_sec, &cur_tm) != NULL;
+        const bool time_source_confirmed = wifi_sntp_manager_is_time_synced();
+        const bool accepted_time = time_valid && time_source_confirmed;
+
+        if (sync_notification) {
+            if (accepted_time) {
+                ESP_LOGI(TAG, "System time synchronized by SNTP");
+            } else {
+                ESP_LOGE(TAG, "SNTP reported sync, but system time failed validation");
+            }
         }
 
-        // Get current system time (synchronized via NTP or local oscillator)
-        struct timeval tv_cur;
-        gettimeofday(&tv_cur, NULL);
-        struct tm cur_tm;
-        localtime_r(&tv_cur.tv_sec, &cur_tm);
-        int sub_ms = (int)(tv_cur.tv_usec / 1000);
-
-        // Update clock model
-        circular_clock_set_time(cur_tm.tm_hour, cur_tm.tm_min, cur_tm.tm_sec, sub_ms);
-        circular_clock_set_date(cur_tm.tm_year + 1900, cur_tm.tm_mon + 1, cur_tm.tm_mday, cur_tm.tm_wday);
+        if (accepted_time) {
+            circular_clock_set_time(cur_tm.tm_hour, cur_tm.tm_min, cur_tm.tm_sec,
+                                    (int)(tv_cur.tv_usec / 1000));
+            circular_clock_set_time_valid(true);
+            const circular_radio_status_t status = circular_clock_get_radio_status();
+            if (!wifi_sntp_manager_is_connected()) {
+                circular_clock_set_radio_status(CIRCULAR_RADIO_FREE_RUN);
+            } else if (sync_notification) {
+                circular_clock_set_radio_status(CIRCULAR_RADIO_LOCKED);
+            } else if (status == CIRCULAR_RADIO_UNKNOWN) {
+                circular_clock_set_radio_status(CIRCULAR_RADIO_SEARCHING);
+            }
+            const int year = cur_tm.tm_year + 1900;
+            const int month = cur_tm.tm_mon + 1;
+            if (year != last_year || month != last_month || cur_tm.tm_mday != last_day) {
+                circular_clock_set_date(year, month, cur_tm.tm_mday, cur_tm.tm_wday);
+                last_year = year;
+                last_month = month;
+                last_day = cur_tm.tm_mday;
+            }
+        } else {
+            circular_clock_set_time_valid(false);
+            if (wifi_sntp_manager_is_time_synced() || !time_acquisition_started) {
+                circular_clock_set_radio_status(CIRCULAR_RADIO_UNKNOWN);
+            } else {
+                circular_clock_set_radio_status(CIRCULAR_RADIO_SEARCHING);
+            }
+        }
 
         // Render frame
         circular_clock_render();
@@ -174,10 +203,11 @@ extern "C" void app_main(void) {
         TickType_t now_ticks = xTaskGetTickCount();
         if ((now_ticks - last_log) >= pdMS_TO_TICKS(5000)) {
             circular_radio_status_t st = circular_clock_get_radio_status();
-            const char* st_name = (st == CIRCULAR_RADIO_SEARCHING) ? "SEARCHING (Radar Sweep)" :
-                                  (st == CIRCULAR_RADIO_LOCKED)    ? "LOCKED (Atomic Time)" : "FREE_RUN (Quartz)";
-            ESP_LOGI(TAG, "[%02d:%02d:%02d] Radio: %s | Calibrating: %s | WiFi: %s | Frames: %lu",
-                     cur_tm.tm_hour, cur_tm.tm_min, cur_tm.tm_sec,
+            const char* st_name = (st == CIRCULAR_RADIO_SEARCHING) ? "SEARCHING" :
+                                  (st == CIRCULAR_RADIO_LOCKED)    ? "SYNCHRONIZED" :
+                                  (st == CIRCULAR_RADIO_FREE_RUN)  ? "HOLDOVER" : "UNKNOWN";
+            ESP_LOGI(TAG, "[%s] Status: %s | Calibrating: %s | WiFi: %s | Frames: %lu",
+                     accepted_time ? "time valid" : "time unknown",
                      st_name, circular_clock_is_calibrating() ? "YES" : "NO",
                      wifi_sntp_manager_is_connected() ? "CONNECTED" : "CONNECTING/OFFLINE",
                      frame_count);

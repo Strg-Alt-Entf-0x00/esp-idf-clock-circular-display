@@ -78,11 +78,11 @@ constexpr uint16_t COLOR_DOT_MINUTE   = 0x3CEF; // Crisp steel slate bead (60, 9
 
 // Radio & Radar Oscilloscope Colors
 constexpr uint16_t COLOR_RADAR_SWEEP  = 0x07FF; // Electric emerald-cyan scan beam
-constexpr uint16_t COLOR_RADIO_LOCKED = 0x07FF; // Confirmed atomic lock
+constexpr uint16_t COLOR_RADIO_LOCKED = 0x07FF; // Confirmed synchronization status
 constexpr uint16_t COLOR_RADIO_SEARCH = 0xFDA0; // Seeking radio wave amber
-constexpr uint16_t COLOR_RADIO_QUARTZ = 0x8410; // Quartz / Free-run gray
+constexpr uint16_t COLOR_RADIO_QUARTZ = 0x8410; // Holdover gray
 
-// Moon Phase (Swiss Watchmaker Earthshine & Pearl Silver)
+// Moon phase (earthshine and pearl silver palette)
 constexpr uint16_t COLOR_MOON_DARK    = 0x1185; // Deep midnight slate earthshine (18, 26, 38)
 constexpr uint16_t COLOR_MOON_BORDER  = 0x328A; // Subtle steel bezel rim (50, 70, 95)
 constexpr uint16_t COLOR_MOON_LIT     = 0xFFDF; // Brilliant lunar pearl white (250, 252, 255)

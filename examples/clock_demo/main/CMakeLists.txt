@@ -6,6 +6,7 @@ idf_component_register(
     REQUIRES
         nvs_flash
         esp_netif
+        esp_wifi
         esp_event
         lwip
 )

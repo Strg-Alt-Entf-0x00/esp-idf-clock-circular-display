@@ -1,6 +1,6 @@
 /**
  * @file radio_animator.cpp
- * @brief Implementation of radar sweep and atomic calibration sweep
+ * @brief Implementation of radar and synchronization transition effects
  */
 
 #include "radio_animator.h"
@@ -37,7 +37,7 @@ void RadioAnimator::update(uint32_t time_ms) {
     uint32_t wave_cycle = time_ms % 1200;
     m_antenna_wave_phase = (int)(wave_cycle / 300); // 0, 1, 2, 3
 
-    // 3. Atomic Calibration Sweep
+    // 3. Synchronization transition animation
     if (m_calibrating) {
         constexpr uint32_t CALIB_DURATION_MS = 2200;
         uint32_t elapsed = time_ms - m_calib_start_ms;

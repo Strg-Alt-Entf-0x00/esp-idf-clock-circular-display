@@ -12,78 +12,82 @@
 
 using namespace clock_theme;
 
-void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int second, int millisecond, circular_radio_status_t radio_status) {
+void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int second,
+                        int millisecond, bool time_valid,
+                        circular_radio_status_t radio_status) {
     if (!sprite) return;
 
-    float sec_float = (float)second + (float)millisecond / 1000.0f;
-    float min_float = (float)minute + sec_float / 60.0f;
-    float hr_float  = (float)hour   + min_float / 60.0f;
+    float sec_float = time_valid ? (float)second + (float)millisecond / 1000.0f : 0.0f;
+    float min_float = time_valid ? (float)minute + sec_float / 60.0f : 0.0f;
+    float hr_float  = time_valid ? (float)hour   + min_float / 60.0f : 0.0f;
 
     // ------------------------------------------------------------------------
     // 1. Outer Ring: 24-Hour Comet Pointer (Fading Tail on R116..119)
     // ------------------------------------------------------------------------
     // 24h = 360°, so 1h = 15°
-    float h_progress = hr_float * 15.0f;
-    float h_head_ang = -90.0f + h_progress + g_radio_animator.getHourAngleOffset();
-    float h_tail_len = 35.0f; // 35° tail length (~2.3 hours)
-    float h_step = 2.0f;
+    if (time_valid) {
+        float h_progress = hr_float * 15.0f;
+        float h_head_ang = -90.0f + h_progress + g_radio_animator.getHourAngleOffset();
+        float h_tail_len = 35.0f; // 35° tail length (~2.3 hours)
+        float h_step = 2.0f;
 
-    for (float a = 0.0f; a < h_tail_len; a += h_step) {
-        float start_ang = h_head_ang - h_tail_len + a;
-        float end_ang = start_ang + h_step + 0.5f;
-        if (end_ang > h_head_ang) end_ang = h_head_ang;
+        for (float a = 0.0f; a < h_tail_len; a += h_step) {
+            float start_ang = h_head_ang - h_tail_len + a;
+            float end_ang = start_ang + h_step + 0.5f;
+            if (end_ang > h_head_ang) end_ang = h_head_ang;
 
-        float ratio = a / h_tail_len; // 0.0 at tail end, 1.0 at head
-        float intensity = powf(ratio, 1.8f);
+            float ratio = a / h_tail_len; // 0.0 at tail end, 1.0 at head
+            float intensity = powf(ratio, 1.8f);
 
-        // Crimson Red comet fade: tail is very dark, tip is glowing bright red
-        uint8_t r = (uint8_t)(30.0f + intensity * 225.0f);
-        uint8_t g = (uint8_t)(intensity * 55.0f);
-        uint8_t b = (uint8_t)(intensity * 35.0f);
+            // Crimson Red comet fade: tail is very dark, tip is glowing bright red
+            uint8_t r = (uint8_t)(30.0f + intensity * 225.0f);
+            uint8_t g = (uint8_t)(intensity * 55.0f);
+            uint8_t b = (uint8_t)(intensity * 35.0f);
 
-        sprite->fillArc(CX, CY, RADIUS_HOUR_INNER, RADIUS_HOUR_OUTER,
-                        start_ang, end_ang, lgfx::color565(r, g, b));
+            sprite->fillArc(CX, CY, RADIUS_HOUR_INNER, RADIUS_HOUR_OUTER,
+                            start_ang, end_ang, lgfx::color565(r, g, b));
+        }
+
+        // Hour head bead (Glowing tip)
+        float h_rad = h_head_ang * (float)M_PI / 180.0f;
+        float h_mid_r = (RADIUS_HOUR_INNER + RADIUS_HOUR_OUTER) / 2.0f;
+        int h_x = CX + (int)(cosf(h_rad) * h_mid_r);
+        int h_y = CY + (int)(sinf(h_rad) * h_mid_r);
+        sprite->fillCircle(h_x, h_y, 3, COLOR_HOUR_BEAD);
+
+        // ------------------------------------------------------------------------
+        // 2. Inner Ring: 60-Minute Comet Pointer (Fading Tail on R71..74)
+        // ------------------------------------------------------------------------
+        // 60m = 360°, so 1m = 6°
+        float m_progress = min_float * 6.0f;
+        float m_head_ang = -90.0f + m_progress + g_radio_animator.getMinuteAngleOffset();
+        float m_tail_len = 45.0f; // 45° tail length (~7.5 minutes)
+        float m_step = 2.0f;
+
+        for (float a = 0.0f; a < m_tail_len; a += h_step) {
+            float start_ang = m_head_ang - m_tail_len + a;
+            float end_ang = start_ang + m_step + 0.5f;
+            if (end_ang > m_head_ang) end_ang = m_head_ang;
+
+            float ratio = a / m_tail_len;
+            float intensity = powf(ratio, 1.8f);
+
+            // Cyan-Blue comet fade: tail is dark, tip is electric cyan
+            uint8_t r = (uint8_t)(intensity * 40.0f);
+            uint8_t g = (uint8_t)(25.0f + intensity * 200.0f);
+            uint8_t b = (uint8_t)(45.0f + intensity * 210.0f);
+
+            sprite->fillArc(CX, CY, RADIUS_MINUTE_INNER, RADIUS_MINUTE_OUTER,
+                            start_ang, end_ang, lgfx::color565(r, g, b));
+        }
+
+        // Minute head bead (Glowing tip pointing outward at minute numbers)
+        float m_rad = m_head_ang * (float)M_PI / 180.0f;
+        float m_mid_r = (RADIUS_MINUTE_INNER + RADIUS_MINUTE_OUTER) / 2.0f;
+        int m_x = CX + (int)(cosf(m_rad) * m_mid_r);
+        int m_y = CY + (int)(sinf(m_rad) * m_mid_r);
+        sprite->fillCircle(m_x, m_y, 3, COLOR_MINUTE_BEAD);
     }
-
-    // Hour head bead (Glowing tip)
-    float h_rad = h_head_ang * (float)M_PI / 180.0f;
-    float h_mid_r = (RADIUS_HOUR_INNER + RADIUS_HOUR_OUTER) / 2.0f;
-    int h_x = CX + (int)(cosf(h_rad) * h_mid_r);
-    int h_y = CY + (int)(sinf(h_rad) * h_mid_r);
-    sprite->fillCircle(h_x, h_y, 3, COLOR_HOUR_BEAD);
-
-    // ------------------------------------------------------------------------
-    // 2. Inner Ring: 60-Minute Comet Pointer (Fading Tail on R71..74)
-    // ------------------------------------------------------------------------
-    // 60m = 360°, so 1m = 6°
-    float m_progress = min_float * 6.0f;
-    float m_head_ang = -90.0f + m_progress + g_radio_animator.getMinuteAngleOffset();
-    float m_tail_len = 45.0f; // 45° tail length (~7.5 minutes)
-    float m_step = 2.0f;
-
-    for (float a = 0.0f; a < m_tail_len; a += h_step) {
-        float start_ang = m_head_ang - m_tail_len + a;
-        float end_ang = start_ang + m_step + 0.5f;
-        if (end_ang > m_head_ang) end_ang = m_head_ang;
-
-        float ratio = a / m_tail_len;
-        float intensity = powf(ratio, 1.8f);
-
-        // Cyan-Blue comet fade: tail is dark, tip is electric cyan
-        uint8_t r = (uint8_t)(intensity * 40.0f);
-        uint8_t g = (uint8_t)(25.0f + intensity * 200.0f);
-        uint8_t b = (uint8_t)(45.0f + intensity * 210.0f);
-
-        sprite->fillArc(CX, CY, RADIUS_MINUTE_INNER, RADIUS_MINUTE_OUTER,
-                        start_ang, end_ang, lgfx::color565(r, g, b));
-    }
-
-    // Minute head bead (Glowing tip pointing outward at minute numbers)
-    float m_rad = m_head_ang * (float)M_PI / 180.0f;
-    float m_mid_r = (RADIUS_MINUTE_INNER + RADIUS_MINUTE_OUTER) / 2.0f;
-    int m_x = CX + (int)(cosf(m_rad) * m_mid_r);
-    int m_y = CY + (int)(sinf(m_rad) * m_mid_r);
-    sprite->fillCircle(m_x, m_y, 3, COLOR_MINUTE_BEAD);
 
     // ------------------------------------------------------------------------
     // 3. Full 24h Dial Scale (Outer Ring, Radius 106)
@@ -100,7 +104,7 @@ void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int sec
         float cy = CY + sinf(angle_rad) * (float)RADIUS_SCALE_HOURS;
 
         int num = (h == 0) ? 24 : h;
-        bool is_current_hour = (hour == h);
+        bool is_current_hour = time_valid && (hour == h);
 
         if (is_current_hour) {
             sprite->setTextColor(COLOR_TEXT_ACTIVE);
@@ -114,7 +118,7 @@ void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int sec
     }
 
     // ------------------------------------------------------------------------
-    // 4. Trennschiene: Precision Divider Track (Radius 94..100)
+    // 4. Trennschiene: Minute Divider Track (Radius 94..100)
     // Includes Funkuhr Radar-Sweep during SEARCHING state
     // ------------------------------------------------------------------------
     bool is_searching = (radio_status == CIRCULAR_RADIO_SEARCHING);
@@ -151,7 +155,7 @@ void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int sec
     // ------------------------------------------------------------------------
     // Pac-Man Dot Consumption & Cascading Regeneration Wave
     // ------------------------------------------------------------------------
-    bool is_regenerating = (second == 0);
+    bool is_regenerating = time_valid && (second == 0);
     float regen_wave_pos = 0.0f;
     if (is_regenerating) {
         // Clockwise cascading wave around the dial during second 0 (0..650ms)
@@ -203,7 +207,9 @@ void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int sec
             bool dot_visible = false;
             float spawn_flash = 0.0f;
 
-            if (is_regenerating) {
+            if (!time_valid) {
+                dot_visible = false;
+            } else if (is_regenerating) {
                 // Minute turnaround: dots respawn in a smooth cascading clockwise wave
                 if ((float)m <= regen_wave_pos) {
                     dot_visible = true;
@@ -239,22 +245,24 @@ void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int sec
     // ------------------------------------------------------------------------
     // 5. Interactive Amber Second Pip (Orbits directly on the Trennschiene R97)
     // ------------------------------------------------------------------------
-    float sec_deg = second * 6.0f - 90.0f;
-    float sec_rad = sec_deg * (float)M_PI / 180.0f;
-    int sec_x = CX + (int)(cosf(sec_rad) * (float)RADIUS_DIVIDER_TRACK);
-    int sec_y = CY + (int)(sinf(sec_rad) * (float)RADIUS_DIVIDER_TRACK);
+    if (time_valid) {
+        float sec_deg = second * 6.0f - 90.0f;
+        float sec_rad = sec_deg * (float)M_PI / 180.0f;
+        int sec_x = CX + (int)(cosf(sec_rad) * (float)RADIUS_DIVIDER_TRACK);
+        int sec_y = CY + (int)(sinf(sec_rad) * (float)RADIUS_DIVIDER_TRACK);
 
-    if (second % 15 == 0) {
-        // Quarter hit: large radiant pulse
-        sprite->drawCircle(sec_x, sec_y, 5, lgfx::color565(255, 160, 20));
-        sprite->fillCircle(sec_x, sec_y, 3, COLOR_SECOND_GLOW);
-    } else if (second % 5 == 0) {
-        // 5-min mark hit: glowing highlight circle
-        sprite->drawCircle(sec_x, sec_y, 4, lgfx::color565(210, 140, 25));
-        sprite->fillCircle(sec_x, sec_y, 3, lgfx::color565(255, 210, 40));
-    } else {
-        // Standard crisp amber pip
-        sprite->fillCircle(sec_x, sec_y, 2, COLOR_SECOND_AMBER);
+        if (second % 15 == 0) {
+            // Quarter hit: large radiant pulse
+            sprite->drawCircle(sec_x, sec_y, 5, lgfx::color565(255, 160, 20));
+            sprite->fillCircle(sec_x, sec_y, 3, COLOR_SECOND_GLOW);
+        } else if (second % 5 == 0) {
+            // 5-min mark hit: glowing highlight circle
+            sprite->drawCircle(sec_x, sec_y, 4, lgfx::color565(210, 140, 25));
+            sprite->fillCircle(sec_x, sec_y, 3, lgfx::color565(255, 210, 40));
+        } else {
+            // Standard crisp amber pip
+            sprite->fillCircle(sec_x, sec_y, 2, COLOR_SECOND_AMBER);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -276,7 +284,7 @@ void dial_renderer_draw(lgfx::LGFX_Sprite* sprite, int hour, int minute, int sec
             snprintf(min_str, sizeof(min_str), "%02d", i * 5);
         }
 
-        bool is_active_min = (minute / 5 == i);
+        bool is_active_min = time_valid && (minute / 5 == i);
         if (is_active_min) {
             sprite->setTextColor(COLOR_TEXT_ACTIVE);
         } else {

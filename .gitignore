@@ -8,6 +8,7 @@ managed_components/
 # Editor / OS files
 .vscode/
 .idea/
+.clangd
 *.swp
 *.bak
 .DS_Store

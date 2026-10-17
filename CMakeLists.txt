@@ -6,6 +6,7 @@ idf_component_register(
         "src/center_renderer.cpp"
         "src/radio_animator.cpp"
         "src/theme.cpp"
+        "src/moon_phase.cpp"
         "src/font_instances.cpp"
     INCLUDE_DIRS
         "include"

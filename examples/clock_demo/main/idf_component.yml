@@ -1,3 +1,3 @@
 dependencies:
-  Strg-Alt-Entf-0x00/esp-idf-formant-clock-circular-display:
+  Strg-Alt-Entf-0x00/esp-idf-clock-circular-display:
     override_path: ../../..

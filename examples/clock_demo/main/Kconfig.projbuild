@@ -4,7 +4,8 @@ menu "24h Circular Funkuhr Configuration"
         bool "Enable WiFi Internet Time Sync (NTP)"
         default y
         help
-            Enables WiFi connection and SNTP synchronization with atomic time servers.
+            Enables WiFi connection and SNTP synchronization. This confirms
+            network time acquisition, not a guarantee of atomic-clock accuracy.
 
     config CLOCK_WIFI_SSID
         string "WiFi SSID"
