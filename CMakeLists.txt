@@ -8,6 +8,8 @@ idf_component_register(
         "src/theme.cpp"
         "src/moon_phase.cpp"
         "src/font_instances.cpp"
+        "src/locales/locale_data.c"
+        "src/clock_settings.c"
     INCLUDE_DIRS
         "include"
     PRIV_INCLUDE_DIRS
@@ -17,6 +19,7 @@ idf_component_register(
         esp_timer
         driver
         freertos
+        nvs_flash
 )
 
 # C++17 support

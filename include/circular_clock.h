@@ -30,12 +30,8 @@ typedef struct {
 } circular_clock_config_t;
 
 /**
- * @brief Language for weekday and month formatting
+ * @brief Date display format
  */
-typedef enum {
-    CLOCK_LANG_DE = 0,            /**< German (e.g. Fr, 16. Okt / Freitag, 16. Okt) */
-    CLOCK_LANG_EN = 1             /**< English (e.g. Fri, 16 Oct / Friday, Oct 16) */
-} clock_language_t;
 
 /**
  * @brief Date display format
@@ -125,9 +121,27 @@ void circular_clock_set_date_str(const char* date_str);
 esp_err_t circular_clock_set_locale(const char* locale_tag);
 
 /**
- * @brief Legacy language selector; maps German and English to de-DE and en-GB
+ * @brief Get current locale tag
+ * @param buf Output buffer (minimum 16 bytes)
+ * @param size Buffer size
+ * @return ESP_OK, ESP_ERR_INVALID_ARG, or ESP_ERR_INVALID_STATE
  */
-void circular_clock_set_language(clock_language_t lang);
+esp_err_t circular_clock_get_locale(char* buf, size_t size);
+
+/**
+ * @brief Get number of supported locales
+ * @return Number of built-in locales (currently 10)
+ */
+uint8_t circular_clock_get_locale_count(void);
+
+/**
+ * @brief Get locale tag by index
+ * @param index Locale index (0..count-1)
+ * @param buf Output buffer (minimum 16 bytes)
+ * @param size Buffer size
+ * @return ESP_OK or ESP_ERR_INVALID_ARG
+ */
+esp_err_t circular_clock_get_locale_tag(uint8_t index, char* buf, size_t size);
 
 /**
  * @brief Set date formatting style (Numeric, Abbreviated month, or Full weekday)
@@ -135,9 +149,19 @@ void circular_clock_set_language(clock_language_t lang);
 void circular_clock_set_date_format(clock_date_format_t fmt);
 
 /**
+ * @brief Get current date format
+ */
+clock_date_format_t circular_clock_get_date_format(void);
+
+/**
  * @brief Set top badge display mode (Smart Auto, Always Antenna, Always Mode)
  */
 void circular_clock_set_badge_mode(clock_badge_mode_t mode);
+
+/**
+ * @brief Get current badge mode
+ */
+clock_badge_mode_t circular_clock_get_badge_mode(void);
 
 /**
  * @brief Set caller-owned time-source status for display
@@ -173,9 +197,21 @@ bool circular_clock_is_calibrating(void);
 void circular_clock_set_ampm_mode(bool enable_ampm, bool is_pm);
 
 /**
+ * @brief Get current 12h/24h mode
+ * @return true if 12h AM/PM mode, false if 24h mode
+ */
+bool circular_clock_get_ampm_mode(void);
+
+/**
  * @brief Set display backlight brightness (0..100 %)
  */
 void circular_clock_set_brightness(uint8_t brightness_pct);
+
+/**
+ * @brief Get current brightness setting
+ * @return Brightness percentage (0..100)
+ */
+uint8_t circular_clock_get_brightness(void);
 
 /**
  * @brief Render current frame to internal sprite and push to GC9A01 display

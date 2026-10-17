@@ -4,7 +4,7 @@ sdkconfig
 sdkconfig.old
 dependencies.lock
 managed_components/
-
+.docs/
 # Editor / OS files
 .vscode/
 .idea/
