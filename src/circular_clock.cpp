@@ -361,15 +361,6 @@ void circular_clock_render(void) {
     circular_clock_push_frame();
 }
 
-void circular_clock_set_brightness(uint8_t brightness_pct) {
-    if (brightness_pct > 100) {
-        ESP_LOGW(TAG, "Brightness %d%% out of range, clamping to 100%%", brightness_pct);
-        brightness_pct = 100;
-    }
-    s_clock.brightness = brightness_pct;
-    // TODO: Apply to backlight PWM if managed
-}
-
 uint8_t circular_clock_get_brightness(void) {
     return s_clock.brightness;
 }
